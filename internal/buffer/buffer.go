@@ -58,7 +58,11 @@ func (b *Buffer) Start(ctx context.Context, fl Flusher) {
 
 func (b *Buffer) runFlush(ctx context.Context) {
 	defer b.wg.Done()
-	ticker := time.NewTicker(time.Duration(b.cfg.FlushInterval) * time.Millisecond)
+	interval := b.cfg.FlushIntervalDuration
+	if interval == 0 {
+		interval = time.Duration(b.cfg.FlushInterval) * time.Millisecond
+	}
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -106,7 +110,11 @@ func (b *Buffer) flushOnce(ctx context.Context) {
 func (b *Buffer) flushWithRetry(parentCtx context.Context, batch []domain.Event) error {
 	var lastErr error
 	for i := 0; i < max(1, b.cfg.FlushRetries); i++ {
-		ctx, cancel := context.WithTimeout(parentCtx, time.Duration(b.cfg.FlushTimeoutMs)*time.Millisecond)
+		timeout := b.cfg.FlushTimeout
+		if timeout == 0 {
+			timeout = time.Duration(b.cfg.FlushTimeoutMs) * time.Millisecond
+		}
+		ctx, cancel := context.WithTimeout(parentCtx, timeout)
 		err := b.flusher.Flush(ctx, batch)
 		cancel()
 		if err == nil {

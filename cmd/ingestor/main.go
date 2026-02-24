@@ -28,8 +28,8 @@ func main() {
 
 	// Create use-case with validation windows from config (seconds -> time.Duration).
 	uc := ingest.NewUseCase(base.Publisher,
-		time.Duration(base.Config.Validation.MaxFutureSeconds)*time.Second,
-		time.Duration(base.Config.Validation.MaxPastSeconds)*time.Second,
+		base.Config.Validation.MaxFutureDuration,
+		base.Config.Validation.MaxPastDuration,
 	)
 
 	ing := handler.NewUseCaseAdapter(uc)
