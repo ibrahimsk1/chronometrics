@@ -11,8 +11,11 @@ type ServerConfig struct {
 }
 
 type BufferConfig struct {
-	Capacity      int
-	FlushInterval int // seconds
+	Capacity       int
+	FlushInterval  int // milliseconds
+	FlushBatchSize int
+	FlushRetries   int
+	FlushTimeoutMs int
 }
 
 type NATSConfig struct {
@@ -56,8 +59,11 @@ func Load() (Config, error) {
 			Port: 8080,
 		},
 		Buffer: BufferConfig{
-			Capacity:      1000,
-			FlushInterval: 5,
+			Capacity:       1000,
+			FlushInterval:  100, // ms
+			FlushBatchSize: 1000,
+			FlushRetries:   3,
+			FlushTimeoutMs: 10000,
 		},
 		NATS: NATSConfig{
 			URL: "",

@@ -3,7 +3,9 @@ package buffer
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"eventmetrics/internal/config"
 	"eventmetrics/internal/domain"
@@ -20,6 +22,7 @@ func TestBuffer_Admit(t *testing.T) {
 	cfg := config.BufferConfig{Capacity: 2, FlushInterval: 1}
 	fl := &fakeFlusher{}
 	b := New(ctx, fl, cfg)
+	b.Start(ctx, fl)
 
 	ev := domain.Event{ID: "e1", Type: "event_type", TimestampMS: 1234567890}
 	if err := b.Publish(ctx, ev); err != nil {
@@ -36,6 +39,7 @@ func TestBuffer_ConfigDefaults(t *testing.T) {
 	cfg := config.BufferConfig{Capacity: 0, FlushInterval: 1}
 	fl := &fakeFlusher{}
 	b := New(ctx, fl, cfg)
+	b.Start(ctx, fl)
 	if b.capacity <= 0 {
 		t.Fatalf("expected positive capacity, got %d", b.capacity)
 	}
@@ -46,6 +50,7 @@ func TestBuffer_Full_ReturnsPublishFailed(t *testing.T) {
 	cfg := config.BufferConfig{Capacity: 1, FlushInterval: 1}
 	fl := &fakeFlusher{}
 	b := New(ctx, fl, cfg)
+	b.Start(ctx, fl)
 
 	ev := domain.Event{ID: "e1", Type: "event_type", TimestampMS: 1234567890}
 	if err := b.Publish(ctx, ev); err != nil {
@@ -55,5 +60,72 @@ func TestBuffer_Full_ReturnsPublishFailed(t *testing.T) {
 		t.Fatalf("expected publish to full buffer to fail, but got nil")
 	} else if !errors.Is(err, domain.ErrPublishFailed) {
 		t.Fatalf("expected error to wrap domain.ErrPublishFailed, got: %v", err)
+	}
+}
+
+// recordingFlusher records flush calls for assertions.
+type recordingFlusher struct {
+	ch chan []domain.Event
+}
+
+func (r *recordingFlusher) Flush(ctx context.Context, batch []domain.Event) error {
+	select {
+	case r.ch <- batch:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func TestBuffer_FlushTriggeredByInterval(t *testing.T) {
+	ctx := context.Background()
+	cfg := config.BufferConfig{Capacity: 100, FlushInterval: 20, FlushBatchSize: 10, FlushRetries: 1, FlushTimeoutMs: 100}
+	fl := &recordingFlusher{ch: make(chan []domain.Event, 1)}
+	b := New(ctx, fl, cfg)
+	b.Start(ctx, fl)
+
+	ev := domain.Event{ID: "e1", Type: "t", TimestampMS: 1}
+	if err := b.Publish(ctx, ev); err != nil {
+		t.Fatalf("publish failed: %v", err)
+	}
+
+	select {
+	case batch := <-fl.ch:
+		if len(batch) != 1 {
+			t.Fatalf("expected batch len 1, got %d", len(batch))
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatalf("timeout waiting for flush by interval")
+	}
+}
+
+func TestBuffer_FlushTriggeredByBatchSize(t *testing.T) {
+	ctx := context.Background()
+	cfg := config.BufferConfig{Capacity: 100, FlushInterval: 1000, FlushBatchSize: 3, FlushRetries: 1, FlushTimeoutMs: 100}
+	fl := &recordingFlusher{ch: make(chan []domain.Event, 1)}
+	b := New(ctx, fl, cfg)
+	b.Start(ctx, fl)
+
+	for i := 0; i < 3; i++ {
+		ev := domain.Event{ID: fmt.Sprintf("e%d", i), Type: "t", TimestampMS: int64(i)}
+		if err := b.Publish(ctx, ev); err != nil {
+			t.Fatalf("publish failed: %v", err)
+		}
+		// trigger flush if threshold reached
+		if len(b.ch) >= b.cfg.FlushBatchSize {
+			select {
+			case b.flushTrigger <- struct{}{}:
+			default:
+			}
+		}
+	}
+
+	select {
+	case batch := <-fl.ch:
+		if len(batch) != 3 {
+			t.Fatalf("expected batch len 3, got %d", len(batch))
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatalf("timeout waiting for flush by batch size")
 	}
 }
