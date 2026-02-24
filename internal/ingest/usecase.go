@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -44,7 +45,9 @@ func (uc *UseCase) Ingest(ctx context.Context, raw *domain.RawEvent) error {
 		return err
 	}
 	if err := uc.publisher.Publish(ctx, ev); err != nil {
-		return fmt.Errorf("publish failed: %w", domain.ErrPublishFailed)
+		// Wrap publisher error with the domain sentinel while preserving original cause.
+		// This ensures errors.Is(err, domain.ErrPublishFailed) will be true.
+		return fmt.Errorf("publish failed: %w", errors.Join(domain.ErrPublishFailed, err))
 	}
 	return nil
 }
