@@ -73,4 +73,3 @@ func TestLoad_NatsRequiresURL(t *testing.T) {
 		t.Fatalf("expected ErrMissingNatsURL, got %v", err)
 	}
 }
-

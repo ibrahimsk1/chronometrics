@@ -75,4 +75,3 @@ func canonicalJSON(v interface{}) ([]byte, error) {
 		return json.Marshal(t)
 	}
 }
-

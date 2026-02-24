@@ -85,4 +85,3 @@ func TestValidateQueryParams_ToLessThanFrom(t *testing.T) {
 		t.Fatalf("expected error when to < from")
 	}
 }
-
