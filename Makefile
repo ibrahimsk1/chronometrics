@@ -8,6 +8,10 @@ test:
 
 lint:
 	@golangci-lint run || true
+ 
+lint-openapi:
+	# placeholder for OpenAPI linting (e.g., redocly/openapi-cli)
+	@echo "lint-openapi (placeholder)"
 
 docker-up:
 	docker compose up -d
