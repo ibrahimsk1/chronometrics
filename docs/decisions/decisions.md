@@ -1,0 +1,19 @@
+# Decision Log (M) — Global
+
+<!-- Promoted from step-local decisions at phase completion. -->
+
+| ID | Decision | Options Considered | Why This Option | Consequences | Status | Source Step | Detail |
+|----|----------|--------------------|-----------------|-------------|--------|------------|--------|
+| D1 | Use ClickHouse as primary data store | PostgreSQL (RDBMS), ClickHouse (columnar OLAP) | 20K/sec peak appends are routine for ClickHouse; columnar storage excels at time-range aggregation; ReplacingMergeTree handles dedup natively | Requires ClickHouse deployment; no ACID transactions (not needed for append-only analytics) | active | Step 2 |
+| D2 | Dedup via ReplacingMergeTree + FINAL at query time | Write-time lookup, Application-layer dedup, ReplacingMergeTree | Keeps write path fast (no lookup); dedup is storage-native; guaranteed at query time | Duplicates exist briefly between merges; queries must use FINAL or explicit dedup | active | Step 2 | [ADR](../../decisions/0002-dedup-via-replacing-merge-tree.md) |
+| D3 | In-memory bounded channel as buffer | Synchronous per-event insert, WAL (go-diskqueue/tidwall), NATS JetStream, Kafka | 48-hour constraint — fastest to implement correctly (~100 LOC, zero external dependencies). Achieves < 50ms p99 with zero write-path overhead. Batch inserts are ClickHouse's preferred pattern. Best-effort durability is acceptable for analytics. | Events in buffer lost on hard crash (best-effort). Buffer fills during prolonged ClickHouse outage → 503 backpressure. | active | Step 2 | [ADR](decisions/0003-buffer-strategy-in-memory-vs-kafka-vs-wal.md) |
+| D4 | Single-process monolith with three logical blocks | Microservices, Monolith with modules | 1 dev, 48h — microservices add ops complexity with no benefit for this scale | All blocks share process; one failure affects all | active | Step 5 | [ADR](../../decisions/0004-single-process-monolith.md) |
+| D5 | 202 Accepted response for ingestion (not 200) | 200 OK, 202 Accepted | Honestly communicates async nature — event is buffered, not yet persisted | Callers must understand 202 semantics | active | Step 6 |
+| D6 | Graceful shutdown: drain buffer with 10s timeout | No drain (lose buffer), Unbounded drain | Balances data preservation with shutdown speed | Best-effort: if ClickHouse unreachable, remaining events lost | active | Step 6 |
+| D7 | ORDER BY (event_name, user_id, timestamp_ms, payload_hash) as dedup key + primary index | Separate dedup key, different ordering, 3-column key without hash | Aligns dedup with primary query pattern; payload hash eliminates false dedup (R2); ms precision enables sub-second queries | 4th column adds minor merge overhead (negligible at expected volume) | revised | Step 7 | [ADR-0005](../../decisions/0005-dedup-key-collision-payload-hash-vs-accept.md) |
+| D8 | Monthly partitions (toYYYYMM) | Daily, weekly, none | Right granularity: efficient pruning, low overhead | May need daily at 10× data volume | active | Step 7 |
+| D9 | metadata as String (not JSON type) | ClickHouse JSON type | Stable (JSON type experimental) | More verbose metadata queries | active | Step 7 |
+| D10 | Startup schema migration | External tool, manual SQL | Simplest for single-container | Startup delay, not for multi-instance | active | Step 7 |
+| D11 | 1 MB body limit per request | No limit, 10 KB, 10 MB | Prevents abuse, generous for events | Rejects > 1 MB (unlikely) | active | Step 9 |
+| D12 | Parameterized queries only | String concatenation | Prevents SQL injection | None | active | Step 9 |
+| D13 | Dedup key collision strategy (R2/A2) | Accept risk, ms timestamps + payload hash, client UUID | B1+D chosen: ms timestamps + xxHash64 payload hash. Two layers eliminate false dedup. Client UUID is upgrade path. | Dedup key widens to 4 columns; hash computation ~100ns/event | confirmed | Step 2 | [ADR](../../decisions/0005-dedup-key-collision-payload-hash-vs-accept.md) |

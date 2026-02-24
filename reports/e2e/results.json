@@ -1,0 +1,30 @@
+{"Time":"2026-02-24T23:28:47.731502+03:00","Action":"start","Package":"eventmetrics/tests/e2e"}
+{"Time":"2026-02-24T23:28:48.10547+03:00","Action":"run","Package":"eventmetrics/tests/e2e","Test":"TestE2E_HappyPath_SingleEventIngestion"}
+{"Time":"2026-02-24T23:28:48.105574+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_HappyPath_SingleEventIngestion","Output":"=== RUN   TestE2E_HappyPath_SingleEventIngestion\n"}
+{"Time":"2026-02-24T23:28:48.393858+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_HappyPath_SingleEventIngestion","Output":"--- PASS: TestE2E_HappyPath_SingleEventIngestion (0.29s)\n"}
+{"Time":"2026-02-24T23:28:48.39391+03:00","Action":"pass","Package":"eventmetrics/tests/e2e","Test":"TestE2E_HappyPath_SingleEventIngestion","Elapsed":0.29}
+{"Time":"2026-02-24T23:28:48.394215+03:00","Action":"run","Package":"eventmetrics/tests/e2e","Test":"TestE2E_ValidationFailures"}
+{"Time":"2026-02-24T23:28:48.394223+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_ValidationFailures","Output":"=== RUN   TestE2E_ValidationFailures\n"}
+{"Time":"2026-02-24T23:28:48.397717+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_ValidationFailures","Output":"--- PASS: TestE2E_ValidationFailures (0.00s)\n"}
+{"Time":"2026-02-24T23:28:48.397766+03:00","Action":"pass","Package":"eventmetrics/tests/e2e","Test":"TestE2E_ValidationFailures","Elapsed":0}
+{"Time":"2026-02-24T23:28:48.397785+03:00","Action":"run","Package":"eventmetrics/tests/e2e","Test":"TestE2E_Deduplication"}
+{"Time":"2026-02-24T23:28:48.397792+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_Deduplication","Output":"=== RUN   TestE2E_Deduplication\n"}
+{"Time":"2026-02-24T23:28:48.713395+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_Deduplication","Output":"--- PASS: TestE2E_Deduplication (0.32s)\n"}
+{"Time":"2026-02-24T23:28:48.713499+03:00","Action":"pass","Package":"eventmetrics/tests/e2e","Test":"TestE2E_Deduplication","Elapsed":0.32}
+{"Time":"2026-02-24T23:28:48.713525+03:00","Action":"run","Package":"eventmetrics/tests/e2e","Test":"TestE2E_BulkIngestion"}
+{"Time":"2026-02-24T23:28:48.713542+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_BulkIngestion","Output":"=== RUN   TestE2E_BulkIngestion\n"}
+{"Time":"2026-02-24T23:28:49.006771+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_BulkIngestion","Output":"--- PASS: TestE2E_BulkIngestion (0.29s)\n"}
+{"Time":"2026-02-24T23:28:49.006878+03:00","Action":"pass","Package":"eventmetrics/tests/e2e","Test":"TestE2E_BulkIngestion","Elapsed":0.29}
+{"Time":"2026-02-24T23:28:49.006923+03:00","Action":"run","Package":"eventmetrics/tests/e2e","Test":"TestE2E_MetricsGrouping"}
+{"Time":"2026-02-24T23:28:49.006941+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_MetricsGrouping","Output":"=== RUN   TestE2E_MetricsGrouping\n"}
+{"Time":"2026-02-24T23:28:49.375571+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_MetricsGrouping","Output":"--- PASS: TestE2E_MetricsGrouping (0.37s)\n"}
+{"Time":"2026-02-24T23:28:49.375697+03:00","Action":"pass","Package":"eventmetrics/tests/e2e","Test":"TestE2E_MetricsGrouping","Elapsed":0.37}
+{"Time":"2026-02-24T23:28:49.37572+03:00","Action":"run","Package":"eventmetrics/tests/e2e","Test":"TestE2E_ThroughputLoad_20k"}
+{"Time":"2026-02-24T23:28:49.375734+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_ThroughputLoad_20k","Output":"=== RUN   TestE2E_ThroughputLoad_20k\n"}
+{"Time":"2026-02-24T23:28:59.378217+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_ThroughputLoad_20k","Output":"    e2e_test.go:526: duration=10.0s  accepted=166000  rejected=0  net_errors=0\n"}
+{"Time":"2026-02-24T23:28:59.378843+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_ThroughputLoad_20k","Output":"    e2e_test.go:528: throughput=16598 events/s  drop_rate=0.00%\n"}
+{"Time":"2026-02-24T23:28:59.379109+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Test":"TestE2E_ThroughputLoad_20k","Output":"--- PASS: TestE2E_ThroughputLoad_20k (10.00s)\n"}
+{"Time":"2026-02-24T23:28:59.379208+03:00","Action":"pass","Package":"eventmetrics/tests/e2e","Test":"TestE2E_ThroughputLoad_20k","Elapsed":10}
+{"Time":"2026-02-24T23:28:59.379439+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Output":"PASS\n"}
+{"Time":"2026-02-24T23:28:59.380199+03:00","Action":"output","Package":"eventmetrics/tests/e2e","Output":"ok  \teventmetrics/tests/e2e\t11.648s\n"}
+{"Time":"2026-02-24T23:28:59.380483+03:00","Action":"pass","Package":"eventmetrics/tests/e2e","Elapsed":11.649000000000001}

@@ -1,0 +1,16 @@
+=== RUN   TestE2E_HappyPath_SingleEventIngestion
+--- PASS: TestE2E_HappyPath_SingleEventIngestion (0.58s)
+=== RUN   TestE2E_ValidationFailures
+--- PASS: TestE2E_ValidationFailures (0.01s)
+=== RUN   TestE2E_Deduplication
+--- PASS: TestE2E_Deduplication (1.42s)
+=== RUN   TestE2E_BulkIngestion
+--- PASS: TestE2E_BulkIngestion (0.33s)
+=== RUN   TestE2E_MetricsGrouping
+--- PASS: TestE2E_MetricsGrouping (0.41s)
+=== RUN   TestE2E_ThroughputLoad_20k
+    e2e_test.go:526: duration=10.0s  accepted=180000  rejected=0  net_errors=0
+    e2e_test.go:528: throughput=17998 events/s  drop_rate=0.00%
+--- PASS: TestE2E_ThroughputLoad_20k (10.00s)
+PASS
+ok  	eventmetrics/tests/e2e	13.420s

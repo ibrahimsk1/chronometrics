@@ -1,0 +1,29 @@
+version: "3.9"
+services:
+  clickhouse:
+    image: yandex/clickhouse-server:latest
+    ports:
+      - "8123:8123"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+  ingestor:
+    build:
+      context: .
+      target: ingestor
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+      
+volumes:
+  clickhouse-data:
+    name: clickhouse-data
