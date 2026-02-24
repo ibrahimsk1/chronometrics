@@ -75,11 +75,43 @@ func (r *RawEvent) ToEvent() (Event, error) {
 	if err := r.Validate(); err != nil {
 		return Event{}, err
 	}
-	return Event{
+	ev := Event{
 		ID:          r.ID,
 		Type:        r.Type,
 		TimestampMS: NormalizeTimestamp(r.Timestamp),
 		Data:        r.Data,
-	}, nil
+	}
+
+	// extract optional metadata for hash inputs
+	channel := ""
+	campaignID := ""
+	var tags []string
+	if r.Data != nil {
+		if v, ok := r.Data["channel"].(string); ok {
+			channel = v
+		}
+		if v, ok := r.Data["campaign_id"].(string); ok {
+			campaignID = v
+		}
+		if v, ok := r.Data["tags"]; ok {
+			switch tv := v.(type) {
+			case []interface{}:
+				for _, e := range tv {
+					if s, ok := e.(string); ok {
+						tags = append(tags, s)
+					}
+				}
+			case []string:
+				tags = append(tags, tv...)
+			}
+		}
+	}
+
+	ph, err := ComputePayloadHash(channel, campaignID, tags, r.Data)
+	if err != nil {
+		return Event{}, err
+	}
+	ev.PayloadHash = ph
+	return ev, nil
 }
 

@@ -95,3 +95,28 @@ func TestValidate_InvalidTimestamp(t *testing.T) {
 	}
 }
 
+func TestToEvent_PayloadHash(t *testing.T) {
+	r := RawEvent{
+		ID:        "1",
+		Type:      "test",
+		Timestamp: 1670000000,
+		Data: map[string]interface{}{
+			"channel":     "c1",
+			"campaign_id": "camp1",
+			"tags":        []interface{}{"a", "b"},
+			"meta":        map[string]interface{}{"k": "v"},
+		},
+	}
+	ev, err := r.ToEvent()
+	if err != nil {
+		t.Fatalf("ToEvent failed: %v", err)
+	}
+	if ev.PayloadHash == "" {
+		t.Fatalf("expected non-empty payload hash")
+	}
+	// ensure metadata preserved
+	if ev.Data == nil || ev.Data["meta"] == nil {
+		t.Fatalf("expected metadata preserved in Event.Data")
+	}
+}
+
