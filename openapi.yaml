@@ -138,15 +138,14 @@ components:
     EventPayload:
       type: object
       required:
-        - id
-        - type
+        - event_name
+        - user_id
         - timestamp
-        - data
+        - metadata
       properties:
-        id:
+        event_name:
           type: string
-          format: uuid
-        type:
+        user_id:
           type: string
         timestamp:
           oneOf:
@@ -155,7 +154,7 @@ components:
             - type: string
               format: date-time
               description: ISO-8601 timestamp
-        data:
+        metadata:
           type: object
           additionalProperties: true
     BulkRequest:
@@ -179,6 +178,18 @@ components:
     MetricResult:
       type: object
       properties:
+        event_name:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        group_by:
+          type: string
+        total_count:
+          type: integer
+        unique_count:
+          type: integer
         groups:
           type: array
           items:
@@ -188,8 +199,10 @@ components:
       properties:
         key:
           type: string
-        value:
-          type: number
+        total_count:
+          type: integer
+        unique_count:
+          type: integer
     HealthResponse:
       type: object
       properties:

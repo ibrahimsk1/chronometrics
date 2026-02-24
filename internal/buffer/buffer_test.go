@@ -24,7 +24,16 @@ func TestBuffer_Admit(t *testing.T) {
 	b := New(ctx, fl, cfg)
 	b.Start(ctx, fl)
 
-	ev := domain.Event{ID: "e1", Type: "event_type", TimestampMS: 1234567890}
+	ev := domain.Event{
+		EventName:   "e1",
+		UserID:      "u",
+		TimestampMs: uint64(1234567890),
+		Channel:     "",
+		CampaignID:  "",
+		Tags:        []string{},
+		Metadata:    "",
+		PayloadHash: 0,
+	}
 	if err := b.Publish(ctx, ev); err != nil {
 		t.Fatalf("expected first publish to succeed, got error: %v", err)
 	}
@@ -52,7 +61,16 @@ func TestBuffer_Full_ReturnsPublishFailed(t *testing.T) {
 	b := New(ctx, fl, cfg)
 	b.Start(ctx, fl)
 
-	ev := domain.Event{ID: "e1", Type: "event_type", TimestampMS: 1234567890}
+	ev := domain.Event{
+		EventName:   "e1",
+		UserID:      "u",
+		TimestampMs: uint64(1234567890),
+		Channel:     "",
+		CampaignID:  "",
+		Tags:        []string{},
+		Metadata:    "",
+		PayloadHash: 0,
+	}
 	if err := b.Publish(ctx, ev); err != nil {
 		t.Fatalf("expected first publish to succeed, got error: %v", err)
 	}
@@ -84,7 +102,16 @@ func TestBuffer_FlushTriggeredByInterval(t *testing.T) {
 	b := New(ctx, fl, cfg)
 	b.Start(ctx, fl)
 
-	ev := domain.Event{ID: "e1", Type: "t", TimestampMS: 1}
+	ev := domain.Event{
+		EventName:   "e1",
+		UserID:      "u",
+		TimestampMs: uint64(1),
+		Channel:     "",
+		CampaignID:  "",
+		Tags:        []string{},
+		Metadata:    "",
+		PayloadHash: 0,
+	}
 	if err := b.Publish(ctx, ev); err != nil {
 		t.Fatalf("publish failed: %v", err)
 	}
@@ -107,7 +134,16 @@ func TestBuffer_FlushTriggeredByBatchSize(t *testing.T) {
 	b.Start(ctx, fl)
 
 	for i := 0; i < 3; i++ {
-		ev := domain.Event{ID: fmt.Sprintf("e%d", i), Type: "t", TimestampMS: int64(i)}
+		ev := domain.Event{
+			EventName:   fmt.Sprintf("e%d", i),
+			UserID:      "u",
+			TimestampMs: uint64(i),
+			Channel:     "",
+			CampaignID:  "",
+			Tags:        []string{},
+			Metadata:    "",
+			PayloadHash: 0,
+		}
 		if err := b.Publish(ctx, ev); err != nil {
 			t.Fatalf("publish failed: %v", err)
 		}
@@ -139,7 +175,16 @@ func TestBuffer_Close_DrainsRemaining(t *testing.T) {
 
 	// publish 2 events (less than batch size), rely on Close to flush them
 	for i := 0; i < 2; i++ {
-		ev := domain.Event{ID: fmt.Sprintf("e%d", i), Type: "t", TimestampMS: int64(i)}
+		ev := domain.Event{
+			EventName:   fmt.Sprintf("e%d", i),
+			UserID:      "u",
+			TimestampMs: uint64(i),
+			Channel:     "",
+			CampaignID:  "",
+			Tags:        []string{},
+			Metadata:    "",
+			PayloadHash: 0,
+		}
 		if err := b.Publish(ctx, ev); err != nil {
 			t.Fatalf("publish failed: %v", err)
 		}

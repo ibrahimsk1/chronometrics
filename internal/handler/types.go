@@ -9,9 +9,13 @@ type ServerConfig struct {
 
 // RawEvent is a minimal payload shape for handler-level parsing used by tests.
 type RawEvent struct {
-	EventName string `json:"event_name"`
-	UserID    string `json:"user_id"`
-	Timestamp int64  `json:"timestamp"`
+	EventName  string                 `json:"event_name"`
+	UserID     string                 `json:"user_id"`
+	Timestamp  int64                  `json:"timestamp"`
+	Channel    string                 `json:"channel,omitempty"`
+	CampaignID string                 `json:"campaign_id,omitempty"`
+	Tags       []string               `json:"tags,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // Ingester is the handler-level interface that bridges to the ingest usecase.

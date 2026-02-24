@@ -1,7 +1,7 @@
 {
-  "id": "11111111-1111-1111-1111-111111111111",
-  "type": "test",
+  "event_name": "test_event",
+  "user_id": "user-123",
   "timestamp": 1670000000,
-  "data": { "value": 1 }
+  "metadata": { "value": 1 }
 }
 

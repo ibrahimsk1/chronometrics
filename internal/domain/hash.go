@@ -1,40 +1,10 @@
 package domain
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"sort"
 	"strings"
-
-	"github.com/cespare/xxhash/v2"
 )
-
-// ComputePayloadHash computes a deterministic hash for payload components.
-// It sorts tags, canonicalizes metadata to deterministic JSON, concatenates
-// the parts and returns a hex-encoded xxHash64.
-func ComputePayloadHash(channel, campaignID string, tags []string, metadata map[string]interface{}) (string, error) {
-	// sort tags deterministically
-	sortedTags := append([]string{}, tags...)
-	sort.Strings(sortedTags)
-
-	// canonicalize metadata
-	metaJSON, err := canonicalJSON(metadata)
-	if err != nil {
-		return "", err
-	}
-
-	// build payload string
-	parts := []string{channel, campaignID, strings.Join(sortedTags, ","), string(metaJSON)}
-	payload := strings.Join(parts, "|")
-
-	h := xxhash.Sum64String(payload)
-	b := make([]byte, 8)
-	// Convert uint64 to bytes big-endian
-	for i := 0; i < 8; i++ {
-		b[7-i] = byte(h >> (uint(i) * 8))
-	}
-	return hex.EncodeToString(b), nil
-}
 
 // canonicalJSON returns deterministic JSON for interface{} values composed of
 // maps and slices. Maps are serialized with keys in sorted order.

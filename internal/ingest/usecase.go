@@ -36,10 +36,10 @@ func (uc *UseCase) Ingest(ctx context.Context, raw *domain.RawEvent) error {
 	if raw == nil {
 		return fmt.Errorf("raw event is nil")
 	}
-	if err := raw.Validate(); err != nil {
+	if err := domain.Validate(raw, uc.maxFuture, uc.maxPast); err != nil {
 		return err
 	}
-	ev, err := raw.ToEvent()
+	ev, err := domain.ToEvent(raw)
 	if err != nil {
 		return err
 	}

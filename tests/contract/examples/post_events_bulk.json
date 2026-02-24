@@ -1,6 +1,6 @@
 {
   "events": [
-    { "id": "22222222-2222-2222-2222-222222222222", "type": "test", "timestamp": 1670000000, "data": {} }
+    { "event_name": "bulk_test", "user_id": "user-222", "timestamp": 1670000000, "metadata": {} }
   ]
 }
 
