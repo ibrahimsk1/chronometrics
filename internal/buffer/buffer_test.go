@@ -97,7 +97,15 @@ func (r *recordingFlusher) Flush(ctx context.Context, batch []domain.Event) erro
 
 func TestBuffer_FlushTriggeredByInterval(t *testing.T) {
 	ctx := context.Background()
-	cfg := config.BufferConfig{Capacity: 100, FlushInterval: 20, FlushBatchSize: 10, FlushRetries: 1, FlushTimeoutMs: 100}
+	cfg := config.BufferConfig{
+		Capacity:              100,
+		FlushInterval:         20,
+		FlushIntervalDuration: 20 * time.Millisecond,
+		FlushBatchSize:        10,
+		FlushRetries:          1,
+		FlushTimeoutMs:        100,
+		FlushTimeout:          100 * time.Millisecond,
+	}
 	fl := &recordingFlusher{ch: make(chan []domain.Event, 1)}
 	b := New(ctx, fl, cfg)
 	b.Start(ctx, fl)
