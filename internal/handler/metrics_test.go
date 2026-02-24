@@ -5,17 +5,26 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"eventmetrics/internal/domain"
 )
 
 type fakeQuerierOK struct{}
 
-func (f *fakeQuerierOK) Query(ctx context.Context, params map[string][]string) (interface{}, error) {
-	return map[string]interface{}{"count": 1}, nil
+func (f *fakeQuerierOK) Query(ctx context.Context, params domain.QueryParams) (*domain.MetricResult, error) {
+	return &domain.MetricResult{
+		EventName:   params.EventName,
+		From:        params.From,
+		To:          params.To,
+		GroupBy:     params.GroupBy,
+		TotalCount:  1,
+		UniqueCount: 1,
+	}, nil
 }
 
 type fakeQuerierTimeout struct{}
 
-func (f *fakeQuerierTimeout) Query(ctx context.Context, params map[string][]string) (interface{}, error) {
+func (f *fakeQuerierTimeout) Query(ctx context.Context, params domain.QueryParams) (*domain.MetricResult, error) {
 	return nil, ErrQueryTimeout
 }
 

@@ -26,7 +26,7 @@ func TestResponse_SchemaMatch_IngestErrors(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&er); err != nil {
 		t.Fatalf("decode error response failed: %v", err)
 	}
-	if er.Code == "" || er.Message == "" {
+	if er.Code == "" || er.Error == "" {
 		t.Fatalf("error response missing fields: %#v", er)
 	}
 }

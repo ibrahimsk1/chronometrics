@@ -6,18 +6,27 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"eventmetrics/internal/domain"
+	"eventmetrics/internal/ingest"
 )
 
 type fakeIngesterSelective struct {
 	failIDs map[string]struct{}
 }
 
-func (f *fakeIngesterSelective) Ingest(ctx context.Context, e *RawEvent) error {
+func (f *fakeIngesterSelective) Ingest(ctx context.Context, e *domain.RawEvent) error {
 	if _, ok := f.failIDs[e.UserID]; ok {
-		return ErrPublishFailed
+		return domain.ErrPublishFailed
 	}
 	return nil
 }
+
+type nopPublisher struct{}
+
+func (n *nopPublisher) Publish(ctx context.Context, e domain.Event) error { return nil }
+func (n *nopPublisher) Close(ctx context.Context) error                   { return nil }
 
 func TestBulk_PartialSuccess(t *testing.T) {
 	// fail middle item
@@ -38,7 +47,9 @@ func TestBulk_PartialSuccess(t *testing.T) {
 }
 
 func TestBulk_AllInvalid(t *testing.T) {
-	ing := &fakeIngesterOK{}
+	// Use a real use-case (with nop publisher) so validation runs in domain.Validate.
+	uc := ingest.NewUseCase(&nopPublisher{}, time.Hour, 24*time.Hour)
+	ing := NewUseCaseAdapter(uc)
 	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20})
 	s := httptest.NewServer(h.Router())
 	defer s.Close()

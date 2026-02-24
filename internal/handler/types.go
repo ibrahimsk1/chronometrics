@@ -1,34 +1,38 @@
 package handler
 
-import "context"
+import (
+	"context"
+
+	"eventmetrics/internal/domain"
+)
 
 // ServerConfig represents minimal server config needed by handlers.
 type ServerConfig struct {
 	MaxBodyBytes int64
 }
 
-// RawEvent is a minimal payload shape for handler-level parsing used by tests.
-type RawEvent struct {
-	EventName  string                 `json:"event_name"`
-	UserID     string                 `json:"user_id"`
-	Timestamp  int64                  `json:"timestamp"`
-	Channel    string                 `json:"channel,omitempty"`
-	CampaignID string                 `json:"campaign_id,omitempty"`
-	Tags       []string               `json:"tags,omitempty"`
-	Metadata   map[string]interface{} `json:"metadata,omitempty"`
-}
-
 // Ingester is the handler-level interface that bridges to the ingest usecase.
+// Aligned with TDD: accepts domain.RawEvent.
 type Ingester interface {
-	Ingest(ctx context.Context, e *RawEvent) error
+	Ingest(ctx context.Context, e *domain.RawEvent) error
 }
 
-// MetricsQuerier is a minimal query interface used by the handler.
+// MetricsQuerier executes aggregation queries. Uses domain types.
 type MetricsQuerier interface {
-	Query(ctx context.Context, params map[string][]string) (interface{}, error)
+	Query(ctx context.Context, params domain.QueryParams) (*domain.MetricResult, error)
+}
+
+// HealthStatus is the JSON shape returned by health endpoint.
+type HealthStatus struct {
+	Status         string `json:"status"`
+	BufferStrategy string `json:"buffer_strategy,omitempty"`
+	UptimeSeconds  int64  `json:"uptime_seconds,omitempty"`
+	ClickHouse     string `json:"clickhouse,omitempty"`
+	NATS           string `json:"nats,omitempty"`
 }
 
 // HealthChecker provides a health snapshot for the handler.
+// Aligned with TDD: returns HealthStatus (no error).
 type HealthChecker interface {
-	Health(ctx context.Context) (interface{}, error)
+	Health(ctx context.Context) HealthStatus
 }

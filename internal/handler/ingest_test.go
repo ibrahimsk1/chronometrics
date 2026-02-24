@@ -6,15 +6,17 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"eventmetrics/internal/domain"
 )
 
 type fakeIngesterOK struct{}
 
-func (f *fakeIngesterOK) Ingest(ctx context.Context, e *RawEvent) error { return nil }
+func (f *fakeIngesterOK) Ingest(ctx context.Context, e *domain.RawEvent) error { return nil }
 
 type fakeIngesterFail struct{}
 
-func (f *fakeIngesterFail) Ingest(ctx context.Context, e *RawEvent) error { return ErrPublishFailed }
+func (f *fakeIngesterFail) Ingest(ctx context.Context, e *domain.RawEvent) error { return domain.ErrPublishFailed }
 
 func TestIngest_ValidEvent(t *testing.T) {
 	ing := &fakeIngesterOK{}

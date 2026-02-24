@@ -1,6 +1,6 @@
 package handler
 
-import "errors"
+import "eventmetrics/internal/domain"
 
-// ErrQueryTimeout indicates the metrics backend timed out.
-var ErrQueryTimeout = errors.New("query timeout")
+// Re-export domain sentinel for compatibility.
+var ErrQueryTimeout = domain.ErrQueryTimeout
