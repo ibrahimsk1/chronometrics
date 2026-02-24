@@ -76,6 +76,17 @@ func (h *Handler) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		To:        toVal,
 		GroupBy:   groupBy,
 	}
+	// Validate query parameters before executing the query.
+	if err := domain.ValidateQueryParams(&params); err != nil {
+		// ValidationError -> 400
+		if domain.IsValidationError(err) {
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+			return
+		}
+		// Fallback to internal error for unexpected validation failures.
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal error")
+		return
+	}
 
 	res, err := h.querier.Query(r.Context(), params)
 	if err != nil {
