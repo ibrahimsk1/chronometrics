@@ -9,17 +9,7 @@ import (
 	"eventmetrics/internal/domain"
 )
 
-// fakePublisher implements EventPublisher for unit tests.
-type fakePublisher struct {
-	published []domain.Event
-}
-
-func (f *fakePublisher) Publish(ctx context.Context, e domain.Event) error {
-	f.published = append(f.published, e)
-	return nil
-}
-
-func (f *fakePublisher) Close(ctx context.Context) error { return nil }
+// note: fakePublisher is declared in usecase_test.go and reused here.
 
 func TestIngest_ValidEvent(t *testing.T) {
 	fp := &fakePublisher{}
