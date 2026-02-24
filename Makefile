@@ -1,4 +1,4 @@
-.PHONY: build test lint docker-up docker-down
+.PHONY: build test lint docker-up docker-down test-contract
 
 build:
 	go build ./...
@@ -12,6 +12,9 @@ lint:
 lint-openapi:
 	# placeholder for OpenAPI linting (e.g., redocly/openapi-cli)
 	@echo "lint-openapi (placeholder)"
+
+test-contract:
+	go test ./tests/contract -v
 
 docker-up:
 	docker compose up -d
