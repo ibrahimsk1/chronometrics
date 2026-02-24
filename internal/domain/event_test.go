@@ -82,3 +82,16 @@ func TestToEvent_Normalization(t *testing.T) {
 	}
 }
 
+func TestValidate_InvalidTimestamp(t *testing.T) {
+	r := RawEvent{
+		ID:        "x",
+		Type:      "t",
+		Timestamp: 99999999999999999, // unreasonably large
+	}
+	if err := r.Validate(); err == nil {
+		t.Fatalf("expected validation error for invalid timestamp")
+	} else if !IsValidationError(err) {
+		t.Fatalf("expected ValidationError, got: %v", err)
+	}
+}
+
