@@ -4,12 +4,23 @@ Minimal backend service that ingests JSON events and exposes aggregated metrics.
 
 ## Quickstart
 
-Docker
+### Docker
 
-- Start services: `make docker-up`
-- Stop services: `make docker-down`
-- Health check: http://localhost:8080/health
-- Run end-to-end tests: `make e2e` (E2E reports and JSON results are written to `reports/e2e/`)
+Run the development services and tests:
+
+```bash
+# start services
+make docker-up
+
+# stop services
+make docker-down
+
+# health check
+curl -sS http://localhost:8080/health
+
+# run end-to-end tests (reports written to reports/e2e/)
+make e2e
+```
 
 ## Assumptions, design decisions, and trade-offs
 
@@ -18,17 +29,21 @@ Docker
 
 ## API - Example requests
 
-POST /events
-
+### POST /events
 Accepts a single event. Example:
 
-curl -sS -X POST "http://localhost:8080/events" -H "Content-Type: application/json" -d @- <<'JSON'
+Note: when using a heredoc with curl, the delimiter must be on its own line — do not place the JSON on the same line as <<'JSON'.
+
+```bash
+curl -sS -X POST "http://localhost:8080/events" \
+  -H "Content-Type: application/json" \
+  -d @- <<'JSON'
 {
   "event_name": "product_view",
   "channel": "web",
   "campaign_id": "cmp_987",
   "user_id": "user_123",
-  "timestamp": 1723475612,
+  "timestamp": 1771977600,
   "tags": ["electronics", "homepage", "flash_sale"],
   "metadata": {
     "product_id": "prod-789",
@@ -38,19 +53,23 @@ curl -sS -X POST "http://localhost:8080/events" -H "Content-Type: application/js
   }
 }
 JSON
+```
 
 Response: 202 Accepted on successful enqueue; 400 on validation error; 503 when buffer is full.
 
-GET /metrics
+### GET /metrics
 
 Returns aggregated metrics. Required query parameters: `event_name`, `from` (epoch seconds), `to` (epoch seconds).
 
 Example:
 
-curl -sS "http://localhost:8080/metrics?event_name=product_view&from=1723475600&to=1723479200"
+```bash
+curl -sS "http://localhost:8080/metrics?event_name=product_view&from=1771974000&to=1771977700"
+```
 
 Sample response (illustrative):
 
+```json
 {
   "event_name": "product_view",
   "total_count": 12345,
@@ -62,6 +81,7 @@ Sample response (illustrative):
     }
   }
 }
+```
 
 ## Next steps / TODOs
 
