@@ -1,0 +1,220 @@
+openapi: 3.1.0
+info:
+  title: Chronometrics API (contract draft)
+  version: 0.1.0
+  description: Root OpenAPI spec for contract work (draft). Contains events, bulk publish, metrics, and health endpoints.
+servers:
+  - url: https://api.example.com
+paths:
+  /events:
+    post:
+      summary: Publish a single event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventPayload'
+      responses:
+        '202':
+          description: Accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Empty'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Payload Too Large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            Retry-After:
+              description: Seconds until client should retry
+              schema:
+                type: integer
+  /events/bulk:
+    post:
+      summary: Publish multiple events in a single request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkRequest'
+      responses:
+        '202':
+          description: Accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Payload Too Large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            Retry-After:
+              description: Seconds until client should retry
+              schema:
+                type: integer
+  /metrics:
+    get:
+      summary: Query aggregated metrics
+      parameters:
+        - name: start
+          in: query
+          schema:
+            type: string
+            description: start timestamp (ISO-8601) or epoch ms
+        - name: end
+          in: query
+          schema:
+            type: string
+            description: end timestamp (ISO-8601) or epoch ms
+      responses:
+        '200':
+          description: Metrics result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricResult'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Gateway Timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /health:
+    get:
+      summary: Service health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  schemas:
+    EventPayload:
+      type: object
+      required:
+        - id
+        - type
+        - timestamp
+        - data
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        timestamp:
+          oneOf:
+            - type: integer
+              description: epoch milliseconds
+            - type: string
+              format: date-time
+              description: ISO-8601 timestamp
+        data:
+          type: object
+          additionalProperties: true
+    BulkRequest:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventPayload'
+    BulkResponse:
+      type: object
+      properties:
+        accepted:
+          type: integer
+        rejected:
+          type: integer
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorResponse'
+    MetricResult:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupResult'
+    GroupResult:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: number
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, down]
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          enum: [VALIDATION_ERROR, PUBLISH_FAILED, PAYLOAD_TOO_LARGE, QUERY_TIMEOUT, INTERNAL_ERROR]
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    Empty:
+      type: object
+      description: empty response body
+  responses:
+    ErrorResponse:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
