@@ -23,7 +23,9 @@ func main() {
 		log.Fatalf("setup failed: %v", err)
 	}
 	defer func() {
-		_ = base.Publisher.Close(context.Background())
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		base.Shutdown(shutdownCtx)
 	}()
 
 	// Create use-case with validation windows from config (seconds -> time.Duration).
@@ -34,13 +36,20 @@ func main() {
 
 	ing := handler.NewUseCaseAdapter(uc)
 
-	// Simple health checker that reports buffer strategy and clickhouse unknown.
-	hc := handler.HealthStatus{
-		Status:         "healthy",
-		BufferStrategy: base.Config.Strategy,
+	// Use repository for metrics queries and health if available.
+	var healthChecker handler.HealthChecker = &simpleHealth{
+		status: handler.HealthStatus{
+			Status:         "healthy",
+			BufferStrategy: base.Config.Strategy,
+		},
+	}
+	var querier handler.MetricsQuerier
+	if base.Repository != nil {
+		healthChecker = base.Repository
+		querier = base.Repository
 	}
 
-	h := handler.New(ing, nil, &simpleHealth{hc}, handler.ServerConfig{MaxBodyBytes: 1 << 20})
+	h := handler.New(ing, querier, healthChecker, handler.ServerConfig{MaxBodyBytes: 1 << 20})
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", base.Config.Server.Port),
@@ -60,7 +69,7 @@ func main() {
 	defer cancel()
 	log.Printf("shutting down ingestor")
 	_ = srv.Shutdown(shutdownCtx)
-	_ = base.Publisher.Close(shutdownCtx)
+	base.Shutdown(shutdownCtx)
 	log.Printf("ingestor shutdown complete")
 }
 

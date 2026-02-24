@@ -30,7 +30,7 @@ func main() {
 	<-ctx.Done()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_ = base.Publisher.Close(shutdownCtx)
+	base.Shutdown(shutdownCtx)
 	log.Println("consumer shutdown complete")
 	os.Exit(0)
 }
