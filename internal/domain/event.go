@@ -114,4 +114,3 @@ func (r *RawEvent) ToEvent() (Event, error) {
 	ev.PayloadHash = ph
 	return ev, nil
 }
-

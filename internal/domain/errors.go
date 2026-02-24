@@ -16,4 +16,3 @@ func IsPublishFailed(err error) bool {
 func IsQueryTimeout(err error) bool {
 	return errors.Is(err, ErrQueryTimeout)
 }
-

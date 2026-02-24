@@ -43,4 +43,3 @@ func TestValidateQueryParams_MoreCases(t *testing.T) {
 		t.Fatalf("expected error when to < from")
 	}
 }
-

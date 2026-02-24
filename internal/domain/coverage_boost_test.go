@@ -48,4 +48,3 @@ func TestCanonicalJSON_NullAndArray(t *testing.T) {
 		t.Fatalf("expected non-empty json for array")
 	}
 }
-

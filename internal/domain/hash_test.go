@@ -38,4 +38,3 @@ func TestComputePayloadHash_MetadataCanonicalization(t *testing.T) {
 		t.Fatalf("expected equal hashes for canonicalized metadata, got %s vs %s", h1, h2)
 	}
 }
-

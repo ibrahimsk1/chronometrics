@@ -119,4 +119,3 @@ func TestToEvent_PayloadHash(t *testing.T) {
 		t.Fatalf("expected metadata preserved in Event.Data")
 	}
 }
-
