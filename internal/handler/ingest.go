@@ -49,6 +49,6 @@ func (h *Handler) handleIngest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleIngestBulk(w http.ResponseWriter, r *http.Request) {
-	// bulk handler not implemented yet
-	writeError(w, http.StatusNotImplemented, "NOT_IMPLEMENTED", "bulk ingestion not implemented")
+	// bulk handler previously stubbed here; implementation lives in bulk.go
+	writeError(w, http.StatusNotImplemented, "NOT_IMPLEMENTED", "bulk ingestion handled by bulk.go")
 }
