@@ -26,3 +26,21 @@ func TestValidateQueryParams(t *testing.T) {
 	}
 }
 
+func TestValidateQueryParams_MoreCases(t *testing.T) {
+	// missing event name
+	q := QueryParams{From: 1, To: 2}
+	if err := ValidateQueryParams(q); err == nil {
+		t.Fatalf("expected error for missing event_name")
+	}
+	// non-positive from/to
+	q = QueryParams{EventName: "e", From: 0, To: 0}
+	if err := ValidateQueryParams(q); err == nil {
+		t.Fatalf("expected error for non-positive from/to")
+	}
+	// to < from
+	q = QueryParams{EventName: "e", From: 200, To: 100}
+	if err := ValidateQueryParams(q); err == nil {
+		t.Fatalf("expected error when to < from")
+	}
+}
+
