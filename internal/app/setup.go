@@ -22,4 +22,3 @@ func Setup(ctx context.Context) (*Base, error) {
 	log.Printf("config loaded: strategy=%s server.port=%d buffer.capacity=%d", cfg.Strategy, cfg.Server.Port, cfg.Buffer.Capacity)
 	return &Base{Config: cfg}, nil
 }
-

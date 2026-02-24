@@ -51,4 +51,3 @@ func ValidateQueryParams(q QueryParams) error {
 	}
 	return nil
 }
-

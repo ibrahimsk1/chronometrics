@@ -40,4 +40,3 @@ func TestValidationError_Is(t *testing.T) {
 		t.Fatalf("IsValidationError should detect validation error")
 	}
 }
-
