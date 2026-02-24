@@ -6,9 +6,10 @@ import (
 )
 
 // ErrorResponse is the standard error shape used by handlers.
+// Matches TDD: { "error": "<message>", "code": "<ERROR_CODE>" }
 type ErrorResponse struct {
-	Code    string `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
+	Error string `json:"error,omitempty"`
+	Code  string `json:"code,omitempty"`
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
@@ -18,5 +19,5 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 }
 
 func writeError(w http.ResponseWriter, status int, code, msg string) {
-	writeJSON(w, status, ErrorResponse{Code: code, Message: msg})
+	writeJSON(w, status, ErrorResponse{Error: msg, Code: code})
 }

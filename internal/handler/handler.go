@@ -3,6 +3,9 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strconv"
+
+	"eventmetrics/internal/domain"
 )
 
 // Handler is the HTTP adapter entrypoint.
@@ -38,16 +41,46 @@ func (h *Handler) Router() http.Handler {
 }
 
 func (h *Handler) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	// Only allow GET
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
 	// Parse query params and delegate to MetricsQuerier.
-	params := r.URL.Query()
 	if h.querier == nil {
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "no querier configured")
 		return
 	}
+	q := r.URL.Query()
+	eventName := q.Get("event_name")
+	fromStr := q.Get("from")
+	toStr := q.Get("to")
+	groupBy := q.Get("group_by")
+
+	// Parse timestamps (seconds or milliseconds accepted).
+	var fromVal, toVal uint64
+	if fromStr != "" {
+		if v, err := strconv.ParseInt(fromStr, 10, 64); err == nil {
+			fromVal = domain.NormalizeTimestamp(v)
+		}
+	}
+	if toStr != "" {
+		if v, err := strconv.ParseInt(toStr, 10, 64); err == nil {
+			toVal = domain.NormalizeTimestamp(v)
+		}
+	}
+	params := domain.QueryParams{
+		EventName: eventName,
+		From:      fromVal,
+		To:        toVal,
+		GroupBy:   groupBy,
+	}
+
 	res, err := h.querier.Query(r.Context(), params)
 	if err != nil {
 		// If backend timed out, map to 504
-		if errors.Is(err, ErrQueryTimeout) {
+		if errors.Is(err, domain.ErrQueryTimeout) {
 			writeError(w, http.StatusGatewayTimeout, "QUERY_TIMEOUT", "query timed out")
 			return
 		}
@@ -58,14 +91,16 @@ func (h *Handler) handleMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
+	// Only allow GET
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
 	// Minimal health handler stub: delegates to HealthChecker if present.
 	if h.health != nil {
-		if s, err := h.health.Health(r.Context()); err == nil {
-			writeJSON(w, http.StatusOK, s)
-			return
-		}
-		// If health check failed, still return 200 but include error field for now.
-		writeJSON(w, http.StatusOK, map[string]interface{}{"status": "degraded"})
+		s := h.health.Health(r.Context())
+		writeJSON(w, http.StatusOK, s)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"status": "ok"})

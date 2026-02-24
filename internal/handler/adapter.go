@@ -18,15 +18,7 @@ func NewUseCaseAdapter(uc *ingest.UseCase) *UseCaseAdapter {
 }
 
 // Ingest converts handler.RawEvent to domain.RawEvent and delegates to use case.
-func (a *UseCaseAdapter) Ingest(ctx context.Context, e *RawEvent) error {
-	dr := &domain.RawEvent{
-		EventName:  e.EventName,
-		UserID:     e.UserID,
-		Timestamp:  e.Timestamp,
-		Channel:    e.Channel,
-		CampaignID: e.CampaignID,
-		Tags:       e.Tags,
-		Metadata:   e.Metadata,
-	}
-	return a.uc.Ingest(ctx, dr)
+func (a *UseCaseAdapter) Ingest(ctx context.Context, e *domain.RawEvent) error {
+	// Handler now uses domain.RawEvent directly; delegate to use-case.
+	return a.uc.Ingest(ctx, e)
 }

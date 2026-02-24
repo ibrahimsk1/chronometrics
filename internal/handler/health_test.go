@@ -10,8 +10,12 @@ import (
 
 type fakeHealthOK struct{}
 
-func (f *fakeHealthOK) Health(ctx context.Context) (interface{}, error) {
-	return map[string]interface{}{"buffer_strategy": "memory", "components": map[string]string{"clickhouse": "ok"}}, nil
+func (f *fakeHealthOK) Health(ctx context.Context) HealthStatus {
+	return HealthStatus{
+		Status:         "healthy",
+		BufferStrategy: "memory",
+		ClickHouse:     "connected",
+	}
 }
 
 func TestHealth_Returns200(t *testing.T) {
