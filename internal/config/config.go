@@ -1,9 +1,12 @@
 package config
 
 import (
+	"bufio"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -68,8 +71,8 @@ type ValidationConfig struct {
 }
 
 type Config struct {
-	// Strategy remains for backward compatibility; BufferStrategy is preferred name in TDD
-	Strategy       string
+	// BufferStrategy is the active buffer strategy ("memory", "nats", "nats-embedded").
+	// Kept as the canonical field per TDD.
 	BufferStrategy string
 
 	Server         ServerConfig
@@ -82,12 +85,31 @@ type Config struct {
 
 var (
 	ErrInvalidRange   = errors.New("invalid range in config")
-	ErrMissingNatsURL = errors.New("nats strategy requires EVENTMETRICS_NATS_URL")
+	ErrMissingNatsURL = errors.New("nats strategy requires CHRONOMETRICS_NATS_URL or NATS_URL")
 )
+
+// envAny returns the first non-empty environment variable value for the given keys.
+// Usage: if v, ok := envAny("CHRONOMETRICS_FOO", "NATS_URL"); ok { ... }
+func envAny(keys ...string) (string, bool) {
+	for _, k := range keys {
+		if v, ok := os.LookupEnv(k); ok && v != "" {
+			return v, true
+		}
+	}
+	return "", false
+}
 
 // Load reads configuration from environment, applies defaults, and validates.
 // Returns a value (non-pointer) for minimal churn with existing callers.
 func Load() (Config, error) {
+	// Load environment file (if present) to populate env vars for local dev.
+	// Do not override already-set environment variables.
+	if err := loadDotEnv(".env"); err != nil {
+		// Non-fatal if .env is missing; return error only for parse failures.
+		if !os.IsNotExist(err) {
+			return Config{}, fmt.Errorf("load .env: %w", err)
+		}
+	}
 	// defaults from TDD
 	cfg := Config{
 		Strategy:       "memory",
@@ -146,17 +168,15 @@ func Load() (Config, error) {
 
 	// Helper to override integer env vars
 	// Strategy (support legacy and TDD-prefixed env var)
-	if v, ok := os.LookupEnv("EVENTMETRICS_BUFFER_STRATEGY"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_BUFFER_STRATEGY"); ok {
 		cfg.BufferStrategy = v
-		cfg.Strategy = v
 	}
 	if v, ok := os.LookupEnv("BUFFER_STRATEGY"); ok && v != "" {
 		cfg.BufferStrategy = v
-		cfg.Strategy = v
 	}
 
 	// Server port (support TDD and legacy env var)
-	if v, ok := os.LookupEnv("EVENTMETRICS_SERVER_PORT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_SERVER_PORT"); ok && v != "" {
 		if p, err := strconv.Atoi(v); err == nil {
 			cfg.Server.Port = p
 		}
@@ -167,27 +187,27 @@ func Load() (Config, error) {
 		}
 	}
 
-	if v, ok := os.LookupEnv("EVENTMETRICS_SERVER_READ_TIMEOUT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_SERVER_READ_TIMEOUT"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.Server.ReadTimeout = d
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_SERVER_WRITE_TIMEOUT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_SERVER_WRITE_TIMEOUT"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.Server.WriteTimeout = d
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_SERVER_IDLE_TIMEOUT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_SERVER_IDLE_TIMEOUT"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.Server.IdleTimeout = d
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_SERVER_BODY_LIMIT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_SERVER_BODY_LIMIT"); ok && v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
 			cfg.Server.BodyLimit = n
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_SERVER_SHUTDOWN_TIMEOUT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_SERVER_SHUTDOWN_TIMEOUT"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.Server.ShutdownTimeout = d
 		}
@@ -195,7 +215,7 @@ func Load() (Config, error) {
 
 	// Buffer (memory) envs
 	// Buffer capacity (support TDD and legacy names)
-	if v, ok := os.LookupEnv("EVENTMETRICS_BUFFER_CAPACITY"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_BUFFER_CAPACITY"); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.Buffer.Capacity = n
 		}
@@ -205,7 +225,7 @@ func Load() (Config, error) {
 			cfg.Buffer.Capacity = n
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_BUFFER_FLUSH_INTERVAL"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_BUFFER_FLUSH_INTERVAL"); ok && v != "" {
 		// accept either duration string ("100ms") or integer ms ("100")
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.Buffer.FlushIntervalDuration = d
@@ -215,12 +235,12 @@ func Load() (Config, error) {
 			cfg.Buffer.FlushIntervalDuration = time.Duration(n) * time.Millisecond
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_BUFFER_FLUSH_BATCH_SIZE"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_BUFFER_FLUSH_BATCH_SIZE"); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.Buffer.FlushBatchSize = n
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_BUFFER_FLUSH_TIMEOUT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_BUFFER_FLUSH_TIMEOUT"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.Buffer.FlushTimeout = d
 			cfg.Buffer.FlushTimeoutMs = int(d / time.Millisecond)
@@ -229,7 +249,7 @@ func Load() (Config, error) {
 			cfg.Buffer.FlushTimeout = time.Duration(n) * time.Millisecond
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_BUFFER_FLUSH_RETRIES"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_BUFFER_FLUSH_RETRIES"); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.Buffer.FlushRetries = n
 		}
@@ -237,102 +257,99 @@ func Load() (Config, error) {
 
 	// NATS
 	// NATS URL (support TDD and legacy)
-	if v, ok := os.LookupEnv("EVENTMETRICS_NATS_URL"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_NATS_URL", "NATS_URL"); ok && v != "" {
 		cfg.NATS.URL = v
 	}
-	if v, ok := os.LookupEnv("NATS_URL"); ok && v != "" {
-		cfg.NATS.URL = v
-	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_NATS_STREAM_NAME"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_NATS_STREAM_NAME"); ok && v != "" {
 		cfg.NATS.StreamName = v
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_NATS_SUBJECT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_NATS_SUBJECT"); ok && v != "" {
 		cfg.NATS.Subject = v
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_NATS_MAX_BYTES"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_NATS_MAX_BYTES"); ok && v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
 			cfg.NATS.MaxBytes = n
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_NATS_REPLICAS"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_NATS_REPLICAS"); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.NATS.Replicas = n
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_NATS_PUBLISH_TIMEOUT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_NATS_PUBLISH_TIMEOUT"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.NATS.PublishTimeout = d
 		}
 	}
 
 	// Consumer
-	if v, ok := os.LookupEnv("EVENTMETRICS_CONSUMER_DURABLE_NAME"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CONSUMER_DURABLE_NAME"); ok && v != "" {
 		cfg.Consumer.DurableName = v
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_CONSUMER_ACK_WAIT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CONSUMER_ACK_WAIT"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.Consumer.AckWait = d
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_CONSUMER_MAX_DELIVER"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CONSUMER_MAX_DELIVER"); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.Consumer.MaxDeliver = n
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_CONSUMER_MAX_ACK_PENDING"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CONSUMER_MAX_ACK_PENDING"); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.Consumer.MaxAckPending = n
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_CONSUMER_BATCH_SIZE"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CONSUMER_BATCH_SIZE"); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.Consumer.BatchSize = n
 			cfg.Consumer.PullBatchSize = n
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_CONSUMER_BATCH_TIMEOUT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CONSUMER_BATCH_TIMEOUT"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.Consumer.BatchTimeout = d
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_CONSUMER_FLUSH_TIMEOUT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CONSUMER_FLUSH_TIMEOUT"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.Consumer.FlushTimeout = d
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_CONSUMER_HEALTH_PORT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CONSUMER_HEALTH_PORT"); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.Consumer.HealthPort = n
 		}
 	}
 
 	// ClickHouse
-	if v, ok := os.LookupEnv("EVENTMETRICS_CLICKHOUSE_ADDR"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CLICKHOUSE_ADDR"); ok && v != "" {
 		cfg.ClickHouse.Addr = v
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_CLICKHOUSE_DATABASE"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CLICKHOUSE_DATABASE"); ok && v != "" {
 		cfg.ClickHouse.Database = v
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_CLICKHOUSE_USERNAME"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CLICKHOUSE_USERNAME"); ok && v != "" {
 		cfg.ClickHouse.Username = v
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_CLICKHOUSE_PASSWORD"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CLICKHOUSE_PASSWORD"); ok && v != "" {
 		cfg.ClickHouse.Password = v
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_CLICKHOUSE_QUERY_TIMEOUT"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_CLICKHOUSE_QUERY_TIMEOUT"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.ClickHouse.QueryTimeout = d
 		}
 	}
 
 	// Validation
-	if v, ok := os.LookupEnv("EVENTMETRICS_VALIDATION_MAX_FUTURE"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_VALIDATION_MAX_FUTURE"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.Validation.MaxFutureDuration = d
 			cfg.Validation.MaxFutureSeconds = int(d / time.Second)
 		}
 	}
-	if v, ok := os.LookupEnv("EVENTMETRICS_VALIDATION_MAX_PAST"); ok && v != "" {
+	if v, ok := envAny("CHRONOMETRICS_VALIDATION_MAX_PAST"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.Validation.MaxPastDuration = d
 			cfg.Validation.MaxPastSeconds = int(d / time.Second)
@@ -345,6 +362,23 @@ func Load() (Config, error) {
 	}
 	if cfg.Validation.MaxPastSeconds == 0 {
 		cfg.Validation.MaxPastSeconds = int(cfg.Validation.MaxPastDuration / time.Second)
+	}
+
+	// Required environment variables: fail fast if missing so app init cannot proceed with implicit defaults.
+	required := []string{
+		"CHRONOMETRICS_BUFFER_STRATEGY",
+		"CHRONOMETRICS_CLICKHOUSE_ADDR",
+		"CHRONOMETRICS_CLICKHOUSE_DATABASE",
+		"CHRONOMETRICS_CLICKHOUSE_USERNAME",
+	}
+	var missing []string
+	for _, k := range required {
+		if v, _ := os.LookupEnv(k); v == "" {
+			missing = append(missing, k)
+		}
+	}
+	if len(missing) > 0 {
+		return Config{}, fmt.Errorf("missing required environment variables: %s", strings.Join(missing, ", "))
 	}
 
 	// Validation checks (basic ranges from TDD)
@@ -369,4 +403,43 @@ func Load() (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// loadDotEnv reads a simple KEY=VALUE file and sets any variables that are not already present in the environment.
+// Lines starting with '#' are comments. Blank lines are ignored. Keys and values are trimmed of surrounding whitespace.
+func loadDotEnv(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		// Split at first '='
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid line in %s: %q", path, line)
+		}
+		key := strings.TrimSpace(parts[0])
+		val := strings.TrimSpace(parts[1])
+		// Remove surrounding quotes if present
+		if len(val) >= 2 && ((val[0] == '"' && val[len(val)-1] == '"') || (val[0] == '\'' && val[len(val)-1] == '\'')) {
+			val = val[1 : len(val)-1]
+		}
+		if key == "" {
+			return fmt.Errorf("invalid key in %s: %q", path, line)
+		}
+		if cur, ok := os.LookupEnv(key); !ok || cur == "" {
+			os.Setenv(key, val)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return err
+	}
+	return nil
 }

@@ -12,13 +12,13 @@ func unsetEnv(keys ...string) {
 }
 
 func TestLoad_Defaults(t *testing.T) {
-	unsetEnv("EVENTMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
+	unsetEnv("CHRONOMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if cfg.Strategy != "memory" {
-		t.Fatalf("expected default strategy memory, got %s", cfg.Strategy)
+	if cfg.BufferStrategy != "memory" {
+		t.Fatalf("expected default buffer strategy memory, got %s", cfg.BufferStrategy)
 	}
 	if cfg.Server.Port != 8080 {
 		t.Fatalf("expected default port 8080, got %d", cfg.Server.Port)
@@ -29,7 +29,7 @@ func TestLoad_Defaults(t *testing.T) {
 }
 
 func TestLoad_EnvOverride(t *testing.T) {
-	unsetEnv("EVENTMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
+	unsetEnv("CHRONOMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
 	os.Setenv("BUFFER_CAPACITY", "5")
 	os.Setenv("SERVER_PORT", "9090")
 	defer unsetEnv("BUFFER_CAPACITY", "SERVER_PORT")
@@ -47,7 +47,7 @@ func TestLoad_EnvOverride(t *testing.T) {
 }
 
 func TestLoad_InvalidRange(t *testing.T) {
-	unsetEnv("EVENTMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
+	unsetEnv("CHRONOMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
 	os.Setenv("BUFFER_CAPACITY", "0")
 	defer unsetEnv("BUFFER_CAPACITY")
 
@@ -61,9 +61,9 @@ func TestLoad_InvalidRange(t *testing.T) {
 }
 
 func TestLoad_NatsRequiresURL(t *testing.T) {
-	unsetEnv("EVENTMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
-	os.Setenv("EVENTMETRICS_BUFFER_STRATEGY", "nats")
-	defer unsetEnv("EVENTMETRICS_BUFFER_STRATEGY")
+	unsetEnv("CHRONOMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
+	os.Setenv("CHRONOMETRICS_BUFFER_STRATEGY", "nats")
+	defer unsetEnv("CHRONOMETRICS_BUFFER_STRATEGY")
 
 	_, err := Load()
 	if err == nil {

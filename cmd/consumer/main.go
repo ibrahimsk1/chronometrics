@@ -20,8 +20,8 @@ func main() {
 		log.Fatalf("setup failed: %v", err)
 	}
 
-	if base.Config.Strategy != "nats" {
-		log.Fatalf("consumer requires strategy=nats, current=%s", base.Config.Strategy)
+	if base.Config.BufferStrategy != "nats" {
+		log.Fatalf("consumer requires buffer_strategy=nats, current=%s", base.Config.BufferStrategy)
 	}
 
 	// NATS consumer not implemented in this iteration.

@@ -58,7 +58,7 @@ func Setup(ctx context.Context) (*Base, error) {
 	}
 	base.Repository = repo
 
-	switch cfg.Strategy {
+	switch cfg.BufferStrategy {
 	case "memory", "":
 		// Create in-memory buffer publisher with repository as flusher.
 		buf := buffer.New(ctx, repo, cfg.Buffer)
@@ -70,11 +70,11 @@ func Setup(ctx context.Context) (*Base, error) {
 	default:
 		// Other strategies not yet implemented
 		_ = chConn.Close()
-		return nil, fmt.Errorf("unsupported buffer strategy: %s", cfg.Strategy)
+		return nil, fmt.Errorf("unsupported buffer strategy: %s", cfg.BufferStrategy)
 	}
 
 	// Minimal logging to surface loaded configuration (non-sensitive fields).
-	log.Printf("config loaded: strategy=%s server.port=%d buffer.capacity=%d", cfg.Strategy, cfg.Server.Port, cfg.Buffer.Capacity)
+	log.Printf("config loaded: buffer_strategy=%s server.port=%d buffer.capacity=%d", cfg.BufferStrategy, cfg.Server.Port, cfg.Buffer.Capacity)
 
 	// Basic sanity check: ensure publisher is present.
 	if base.Publisher == nil {
