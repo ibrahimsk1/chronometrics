@@ -19,7 +19,7 @@ type BulkResponse struct {
 	Errors   []string `json:"errors,omitempty"`
 }
 
-func (h *Handler) handleIngestBulk(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleBulk(w http.ResponseWriter, r *http.Request) {
 	// enforce body limit
 	max := h.cfg.MaxBodyBytes
 	if max <= 0 {

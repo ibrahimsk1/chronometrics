@@ -24,7 +24,7 @@ func New(ing Ingester, q MetricsQuerier, h HealthChecker, cfg ServerConfig) *Han
 	}
 	// register routes
 	hnd.mux.Handle("/events", http.HandlerFunc(hnd.handleIngest))
-	hnd.mux.Handle("/events/bulk", http.HandlerFunc(hnd.handleIngestBulk))
+	hnd.mux.Handle("/events/bulk", http.HandlerFunc(hnd.handleBulk))
 	hnd.mux.Handle("/metrics", http.HandlerFunc(hnd.handleMetrics))
 	hnd.mux.Handle("/health", http.HandlerFunc(hnd.handleHealth))
 	return hnd
