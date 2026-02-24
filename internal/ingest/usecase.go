@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"eventmetrics/internal/domain"
@@ -15,7 +16,6 @@ type EventPublisher interface {
 }
 
 // UseCase orchestrates event ingestion: validation and publish.
-// Concrete behaviour implemented in subsequent CUs.
 type UseCase struct {
 	publisher EventPublisher
 	maxFuture time.Duration
@@ -29,4 +29,22 @@ func NewUseCase(pub EventPublisher, maxFuture, maxPast time.Duration) *UseCase {
 		maxFuture: maxFuture,
 		maxPast:   maxPast,
 	}
+}
+
+// Ingest validates, normalizes, and publishes a RawEvent.
+func (uc *UseCase) Ingest(ctx context.Context, raw *domain.RawEvent) error {
+	if raw == nil {
+		return fmt.Errorf("raw event is nil")
+	}
+	if err := raw.Validate(); err != nil {
+		return err
+	}
+	ev, err := raw.ToEvent()
+	if err != nil {
+		return err
+	}
+	if err := uc.publisher.Publish(ctx, ev); err != nil {
+		return fmt.Errorf("publish failed: %w", domain.ErrPublishFailed)
+	}
+	return nil
 }
