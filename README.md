@@ -30,6 +30,7 @@ make e2e
 ## API - Example requests
 
 ### POST /events
+
 Accepts a single event. Example:
 
 Note: when using a heredoc with curl, the delimiter must be on its own line — do not place the JSON on the same line as <<'JSON'.
@@ -70,17 +71,7 @@ curl -sS "http://localhost:8080/metrics?event_name=product_view&from=1771974000&
 Sample response (illustrative):
 
 ```json
-{
-  "event_name": "product_view",
-  "total_count": 12345,
-  "unique_users": 6789,
-  "breakdown": {
-    "by_channel": {
-      "web": 10000,
-      "mobile": 2345
-    }
-  }
-}
+{"event_name":"product_view","from":1771974000000,"to":1771977700000,"total_count":1,"unique_count":1}
 ```
 
 ## Next steps / TODOs
