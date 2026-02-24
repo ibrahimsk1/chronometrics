@@ -47,4 +47,3 @@ func TestUseCase_PublisherCalled(t *testing.T) {
 		t.Fatalf("expected 1 published event, got %d", len(fp.published))
 	}
 }
-
