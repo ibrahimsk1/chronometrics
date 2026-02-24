@@ -1,53 +1,63 @@
 package domain
 
-// QueryParams represents the validated query parameters for GET /metrics.
+import (
+	"fmt"
+	"strings"
+)
+
+// QueryParams for GET /metrics endpoint.
+// Maps to system_design §6.2 F3 query contract.
 type QueryParams struct {
-	EventName string `json:"event_name"`
-	From      int64  `json:"from"`
-	To        int64  `json:"to"`
-	GroupBy   string `json:"group_by,omitempty"`
+	EventName string
+	From      uint64
+	To        uint64
+	GroupBy   string
 }
 
-// MetricResult is a top-level metric response for an event.
-type MetricResult struct {
-	EventName string        `json:"event_name"`
-	Groups    []GroupResult `json:"groups"`
-	Total     int64         `json:"total"`
+var ValidGroupByValues = map[string]bool{
+	"":        true,
+	"channel": true,
+	"hour":    true,
+	"day":     true,
 }
 
-// GroupResult represents an aggregation bucket result.
-type GroupResult struct {
-	Key   string `json:"key"`
-	Count int64  `json:"count"`
-}
-
-var allowedGroupBy = map[string]bool{
-	"":         true,
-	"none":     true,
-	"channel":  true,
-	"campaign": true,
-	"tag":      true,
-	"hour":     true,
-	"day":      true,
-}
-
-// ValidateQueryParams returns a ValidationError when required fields are missing
-// or group_by is invalid.
-func ValidateQueryParams(q QueryParams) error {
-	if q.EventName == "" {
-		return &ValidationError{Msg: "event_name required"}
+func ValidateQueryParams(p *QueryParams) error {
+	var errs []string
+	if strings.TrimSpace(p.EventName) == "" {
+		errs = append(errs, "event_name is required")
 	}
-	if q.From <= 0 {
-		return &ValidationError{Msg: "from required and must be > 0"}
+	if p.From == 0 {
+		errs = append(errs, "from is required")
 	}
-	if q.To <= 0 {
-		return &ValidationError{Msg: "to required and must be > 0"}
+	if p.To == 0 {
+		errs = append(errs, "to is required")
 	}
-	if q.To < q.From {
-		return &ValidationError{Msg: "to must be >= from"}
+	if p.From > 0 && p.To > 0 && p.From >= p.To {
+		errs = append(errs, "from must be before to")
 	}
-	if !allowedGroupBy[q.GroupBy] {
-		return &ValidationError{Msg: "invalid group_by"}
+	if !ValidGroupByValues[p.GroupBy] {
+		errs = append(errs, fmt.Sprintf("invalid group_by: %q (valid: channel, hour, day)", p.GroupBy))
+	}
+	if len(errs) > 0 {
+		return &ValidationError{Errors: errs}
 	}
 	return nil
+}
+
+// MetricResult is the response shape for GET /metrics.
+// Maps to system_design §4.1 Metric Result (ephemeral entity).
+type MetricResult struct {
+	EventName   string        `json:"event_name"`
+	From        uint64        `json:"from"`
+	To          uint64        `json:"to"`
+	GroupBy     string        `json:"group_by,omitempty"`
+	TotalCount  uint64        `json:"total_count"`
+	UniqueCount uint64        `json:"unique_count"`
+	Groups      []GroupResult `json:"groups,omitempty"`
+}
+
+type GroupResult struct {
+	Key         string `json:"key"`
+	TotalCount  uint64 `json:"total_count"`
+	UniqueCount uint64 `json:"unique_count"`
 }
