@@ -4,6 +4,8 @@ Minimal backend service that ingests JSON events and exposes aggregated metrics.
 
 ## Quickstart
 
+Create a `.env` file from `.env.example` before running Docker (for example: `cp .env.example .env`).
+
 ### Docker
 
 Run the development services and tests:
