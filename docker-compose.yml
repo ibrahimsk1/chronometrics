@@ -17,7 +17,7 @@ services:
       - EVENTMETRICS_BUFFER_STRATEGY=memory
     ports:
       - "8080:8080"
-    profiles: ["memory","nats-single","nats"]
+    # included by default for smoke tests (memory strategy)
 
   consumer:
     build:
@@ -25,7 +25,7 @@ services:
       target: consumer
     depends_on:
       - clickhouse
-    profiles: ["nats","nats-single"]
+    # consumer runs only for nats strategies in full CI; excluded from default smoke
 
   nats:
     image: nats:2.10.0
