@@ -1,0 +1,6 @@
+{
+  "events": [
+    { "id": "evt1", "type": "test", "timestamp": 1670000000 }
+  ]
+}
+
