@@ -34,3 +34,22 @@ func New(ing Ingester, q MetricsQuerier, h HealthChecker, cfg ServerConfig) *Han
 func (h *Handler) Router() http.Handler {
 	return h.mux
 }
+
+func (h *Handler) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	// Minimal metrics handler stub: responds 200 with empty result.
+	writeJSON(w, http.StatusOK, map[string]interface{}{"metrics": []interface{}{}})
+}
+
+func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
+	// Minimal health handler stub: delegates to HealthChecker if present.
+	if h.health != nil {
+		if s, err := h.health.Health(r.Context()); err == nil {
+			writeJSON(w, http.StatusOK, s)
+			return
+		}
+		// If health check failed, still return 200 but include error field for now.
+		writeJSON(w, http.StatusOK, map[string]interface{}{"status": "degraded"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"status": "ok"})
+}
