@@ -1,8 +1,14 @@
 package main
-
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 func main() {
-    fmt.Println("consumer placeholder")
+	fmt.Println("consumer placeholder — running")
+	// keep process alive to simulate a long-running service
+	for {
+		time.Sleep(1 * time.Hour)
+	}
 }
 
