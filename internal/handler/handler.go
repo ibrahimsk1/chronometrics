@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 )
 
@@ -36,8 +37,23 @@ func (h *Handler) Router() http.Handler {
 }
 
 func (h *Handler) handleMetrics(w http.ResponseWriter, r *http.Request) {
-	// Minimal metrics handler stub: responds 200 with empty result.
-	writeJSON(w, http.StatusOK, map[string]interface{}{"metrics": []interface{}{}})
+	// Parse query params and delegate to MetricsQuerier.
+	params := r.URL.Query()
+	if h.querier == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "no querier configured")
+		return
+	}
+	res, err := h.querier.Query(r.Context(), params)
+	if err != nil {
+		// If backend timed out, map to 504
+		if errors.Is(err, ErrQueryTimeout) {
+			writeError(w, http.StatusGatewayTimeout, "QUERY_TIMEOUT", "query timed out")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
 }
 
 func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
