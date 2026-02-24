@@ -33,7 +33,8 @@ func New(ing Ingester, q MetricsQuerier, h HealthChecker, cfg ServerConfig) *Han
 
 // Router returns the http.Handler for the service.
 func (h *Handler) Router() http.Handler {
-	return h.mux
+	// Wrap mux with middleware so all routes get the common behavior.
+	return h.withMiddleware(h.mux)
 }
 
 func (h *Handler) handleMetrics(w http.ResponseWriter, r *http.Request) {
