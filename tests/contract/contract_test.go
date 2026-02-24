@@ -1,33 +1,25 @@
 package contract
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/openapi3filter"
-	"github.com/getkin/kin-openapi/routers/gorillamux"
 )
 
 func TestContractExamplesValidate(t *testing.T) {
 	ctx := context.Background()
-	loader := openapi3.NewLoader()
-	loader.IsExternalRefsAllowed = true
+	loader := &openapi3.Loader{Context: ctx, IsExternalRefsAllowed: true}
 	doc, err := loader.LoadFromFile(filepath.Join("..", "..", "openapi.yaml"))
 	if err != nil {
 		t.Fatalf("load openapi: %v", err)
 	}
-	if err := doc.Validate(ctx); err != nil {
+	if err := doc.Validate(loader.Context); err != nil {
 		t.Fatalf("openapi validation failed: %v", err)
-	}
-
-	router, err := gorillamux.NewRouter(doc)
-	if err != nil {
-		t.Fatalf("create router: %v", err)
 	}
 
 	cases := []struct {
@@ -52,38 +44,54 @@ func TestContractExamplesValidate(t *testing.T) {
 				t.Fatalf("read example %s: %v", c.examplePath, err)
 			}
 
-			req, err := http.NewRequest(c.method, c.path, bytes.NewReader(b))
-			if err != nil {
-				t.Fatalf("create request: %v", err)
-			}
-			req.Header.Set("Content-Type", "application/json")
-
-			route, pathParams, err := router.FindRoute(req)
-			if err != nil {
-				t.Fatalf("find route for %s %s: %v", c.method, c.path, err)
+			// Decode example JSON into a generic value for validation
+			var v interface{}
+			if err := json.Unmarshal(b, &v); err != nil {
+				t.Fatalf("invalid json in %s: %v", c.examplePath, err)
 			}
 
-			reqValidationInput := &openapi3filter.RequestValidationInput{
-				Request:    req,
-				PathParams: pathParams,
-				Route:      route,
+			pathItem := doc.Paths.Value(c.path)
+			if pathItem == nil {
+				t.Fatalf("path %s not found in spec", c.path)
+			}
+			var op *openapi3.Operation
+			switch c.method {
+			case http.MethodGet:
+				op = pathItem.Get
+			case http.MethodPost:
+				op = pathItem.Post
+			default:
+				t.Fatalf("unsupported method %s", c.method)
+			}
+			if op == nil {
+				t.Fatalf("operation %s %s not declared", c.method, c.path)
 			}
 
 			if !c.validateAsResponse {
-				if err := openapi3filter.ValidateRequest(ctx, reqValidationInput); err != nil {
-					t.Fatalf("request validation failed: %v", err)
+				if op.RequestBody == nil || op.RequestBody.Value == nil {
+					t.Fatalf("no requestBody declared for %s %s", c.method, c.path)
+				}
+				ct := op.RequestBody.Value.Content.Get("application/json")
+				if ct == nil || ct.Schema == nil || ct.Schema.Value == nil {
+					t.Fatalf("no application/json schema for requestBody %s %s", c.method, c.path)
+				}
+				if err := ct.Schema.Value.VisitJSON(v, openapi3.VisitAsRequest()); err != nil {
+					t.Fatalf("request example does not match schema: %v", err)
 				}
 				return
 			}
 
-			respValidation := &openapi3filter.ResponseValidationInput{
-				RequestValidationInput: reqValidationInput,
-				Status:                 c.status,
-				Header:                 http.Header{"Content-Type": []string{"application/json"}},
+			// Validate as response
+			resp := op.Responses.Status(c.status)
+			if resp == nil || resp.Value == nil {
+				t.Fatalf("no response %d declared for %s %s", c.status, c.method, c.path)
 			}
-			respValidation.SetBodyBytes(b)
-			if err := openapi3filter.ValidateResponse(ctx, respValidation); err != nil {
-				t.Fatalf("response validation failed: %v", err)
+			ct := resp.Value.Content.Get("application/json")
+			if ct == nil || ct.Schema == nil || ct.Schema.Value == nil {
+				t.Fatalf("no application/json schema for response %d %s %s", c.status, c.method, c.path)
+			}
+			if err := ct.Schema.Value.VisitJSON(v); err != nil {
+				t.Fatalf("response example does not match schema: %v", err)
 			}
 		})
 	}
