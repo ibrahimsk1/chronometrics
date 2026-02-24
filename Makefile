@@ -34,8 +34,7 @@ docker-down:
 ##        make e2e E2E_TIMEOUT=180s
 e2e:
 	@mkdir -p $(E2E_REPORT_DIR)
-	docker compose build ingestor
-	docker compose up -d --force-recreate
+	docker compose up -d
 	@echo "Waiting for ingestor /health to be ready (up to 30s)..."
 	@for i in $$(seq 1 30); do \
 		curl -sf http://localhost:8080/health > /dev/null 2>&1 && echo "  ready after $${i}s" && break; \
