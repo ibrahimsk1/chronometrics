@@ -5,6 +5,7 @@ go 1.22.5
 toolchain go1.23.3
 
 require (
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/getkin/kin-openapi v0.133.0 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
