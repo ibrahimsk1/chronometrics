@@ -34,7 +34,7 @@ func TestMetrics_Query_Success(t *testing.T) {
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
-	res, err := http.Get(s.URL + "/metrics?from=0&to=1")
+	res, err := http.Get(s.URL + "/metrics?event_name=evt&from=1&to=2")
 	if err != nil {
 		t.Fatalf("get failed: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestMetrics_Query_Timeout(t *testing.T) {
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
-	res, err := http.Get(s.URL + "/metrics?from=0&to=1")
+	res, err := http.Get(s.URL + "/metrics?event_name=evt&from=1&to=2")
 	if err != nil {
 		t.Fatalf("get failed: %v", err)
 	}

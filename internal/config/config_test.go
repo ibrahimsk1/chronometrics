@@ -13,6 +13,11 @@ func unsetEnv(keys ...string) {
 
 func TestLoad_Defaults(t *testing.T) {
 	unsetEnv("CHRONOMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
+	// Provide required ClickHouse envs for Load() validation.
+	_ = os.Setenv("CHRONOMETRICS_CLICKHOUSE_ADDR", "localhost:9000")
+	_ = os.Setenv("CHRONOMETRICS_CLICKHOUSE_DATABASE", "default")
+	_ = os.Setenv("CHRONOMETRICS_CLICKHOUSE_USERNAME", "default")
+	defer unsetEnv("CHRONOMETRICS_CLICKHOUSE_ADDR", "CHRONOMETRICS_CLICKHOUSE_DATABASE", "CHRONOMETRICS_CLICKHOUSE_USERNAME")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -30,8 +35,13 @@ func TestLoad_Defaults(t *testing.T) {
 
 func TestLoad_EnvOverride(t *testing.T) {
 	unsetEnv("CHRONOMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
-	os.Setenv("BUFFER_CAPACITY", "5")
-	os.Setenv("SERVER_PORT", "9090")
+	// Provide required ClickHouse envs for Load() validation.
+	_ = os.Setenv("CHRONOMETRICS_CLICKHOUSE_ADDR", "localhost:9000")
+	_ = os.Setenv("CHRONOMETRICS_CLICKHOUSE_DATABASE", "default")
+	_ = os.Setenv("CHRONOMETRICS_CLICKHOUSE_USERNAME", "default")
+	defer unsetEnv("CHRONOMETRICS_CLICKHOUSE_ADDR", "CHRONOMETRICS_CLICKHOUSE_DATABASE", "CHRONOMETRICS_CLICKHOUSE_USERNAME")
+	_ = os.Setenv("BUFFER_CAPACITY", "5")
+	_ = os.Setenv("SERVER_PORT", "9090")
 	defer unsetEnv("BUFFER_CAPACITY", "SERVER_PORT")
 
 	cfg, err := Load()
@@ -48,7 +58,12 @@ func TestLoad_EnvOverride(t *testing.T) {
 
 func TestLoad_InvalidRange(t *testing.T) {
 	unsetEnv("CHRONOMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
-	os.Setenv("BUFFER_CAPACITY", "0")
+	// Provide required ClickHouse envs for Load() validation.
+	_ = os.Setenv("CHRONOMETRICS_CLICKHOUSE_ADDR", "localhost:9000")
+	_ = os.Setenv("CHRONOMETRICS_CLICKHOUSE_DATABASE", "default")
+	_ = os.Setenv("CHRONOMETRICS_CLICKHOUSE_USERNAME", "default")
+	defer unsetEnv("CHRONOMETRICS_CLICKHOUSE_ADDR", "CHRONOMETRICS_CLICKHOUSE_DATABASE", "CHRONOMETRICS_CLICKHOUSE_USERNAME")
+	_ = os.Setenv("BUFFER_CAPACITY", "0")
 	defer unsetEnv("BUFFER_CAPACITY")
 
 	_, err := Load()
@@ -57,19 +72,5 @@ func TestLoad_InvalidRange(t *testing.T) {
 	}
 	if err != ErrInvalidRange {
 		t.Fatalf("expected ErrInvalidRange, got %v", err)
-	}
-}
-
-func TestLoad_NatsRequiresURL(t *testing.T) {
-	unsetEnv("CHRONOMETRICS_BUFFER_STRATEGY", "SERVER_PORT", "BUFFER_CAPACITY", "BUFFER_FLUSH_INTERVAL", "NATS_URL")
-	os.Setenv("CHRONOMETRICS_BUFFER_STRATEGY", "nats")
-	defer unsetEnv("CHRONOMETRICS_BUFFER_STRATEGY")
-
-	_, err := Load()
-	if err == nil {
-		t.Fatalf("expected error when nats strategy without NATS_URL, got nil")
-	}
-	if err != ErrMissingNatsURL {
-		t.Fatalf("expected ErrMissingNatsURL, got %v", err)
 	}
 }

@@ -6,7 +6,6 @@ services:
       - "8123:8123"
     volumes:
       - clickhouse-data:/var/lib/clickhouse
-
   ingestor:
     build:
       context: .
@@ -17,26 +16,7 @@ services:
       - .env
     ports:
       - "8080:8080"
-    # included by default for smoke tests (memory strategy)
-
-  consumer:
-    build:
-      context: .
-      target: consumer
-    depends_on:
-      - clickhouse
-    env_file:
-      - .env
-    # consumer runs only for nats strategies in full CI; excluded from default smoke
-
-  nats:
-    image: nats:2.10.0
-    ports:
-      - "4222:4222"
-      - "8222:8222"
-    profiles: ["nats","nats-single"]
-
+      
 volumes:
   clickhouse-data:
     name: clickhouse-data
-

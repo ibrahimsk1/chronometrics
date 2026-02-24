@@ -3,7 +3,7 @@
 Version: 2026-02-24
 
 Purpose
-- End-to-end test plan for Mode A (EVENTMETRICS_BUFFER_STRATEGY=memory). Verify ingestion, in-memory buffering, flush-to-ClickHouse, deduplication, metrics, backpressure, health, and graceful shutdown.
+- End-to-end test plan. Verify ingestion, in-memory buffering, flush-to-ClickHouse, deduplication, metrics, backpressure, health, and graceful shutdown.
 
 Environment & prereqs
 - Docker Compose (root `docker-compose.yml`) — default profile runs ingestor + ClickHouse in memory strategy.
@@ -87,5 +87,5 @@ Artifacts and debugging
   - test HTTP traces (requests/responses)
 
 Notes & next steps
-- This plan covers Mode A only. Later extend to nats-embedded and nats strategies with NATS-specific tests (MaxDeliver, DLQ, redelivery).
+- This plan covers Mode A only. Later extend to additional strategies and add strategy-specific tests as needed.
 

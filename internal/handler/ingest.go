@@ -21,7 +21,7 @@ func (h *Handler) handleIngest(w http.ResponseWriter, r *http.Request) {
 		max = 1 << 20 // 1MB default
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, max)
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeError(w, http.StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "request body too large")
@@ -41,7 +41,7 @@ func (h *Handler) handleIngest(w http.ResponseWriter, r *http.Request) {
 		}
 		// Publish failures -> 503 (service overloaded)
 		if errors.Is(err, domain.ErrPublishFailed) {
-			// Best-effort Retry-After header per TDD (nats: 1s).
+			// Best-effort Retry-After header per TDD (1s).
 			w.Header().Set("Retry-After", "1")
 			writeError(w, http.StatusServiceUnavailable, "PUBLISH_FAILED", "service overloaded, retry later")
 			return
@@ -52,9 +52,4 @@ func (h *Handler) handleIngest(w http.ResponseWriter, r *http.Request) {
 	}
 	// accepted
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
-}
-
-func (h *Handler) handleIngestBulk(w http.ResponseWriter, r *http.Request) {
-	// bulk handler previously stubbed here; implementation lives in bulk.go
-	writeError(w, http.StatusNotImplemented, "NOT_IMPLEMENTED", "bulk ingestion handled by bulk.go")
 }

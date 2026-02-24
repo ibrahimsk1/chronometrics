@@ -24,7 +24,7 @@ type RawEvent struct {
 
 // Event is the canonical domain entity after validation and normalization.
 // Maps to system_design §4.1 Event entity.
-// JSON tags are required because Event is serialized to NATS messages (nats strategy).
+// JSON tags are present for API mapping and persistence.
 type Event struct {
 	EventName   string   `json:"event_name"`
 	UserID      string   `json:"user_id"`
@@ -87,20 +87,20 @@ func NormalizeTimestamp(ts int64) uint64 {
 // Null byte separators prevent field boundary ambiguity.
 // See system_design §7.4, ADR-0005.
 func ComputePayloadHash(channel, campaignID string, tags []string, metadata string) uint64 {
-	h := xxhash.New()
-	h.WriteString(channel)
-	h.Write([]byte{0})
-	h.WriteString(campaignID)
-	h.Write([]byte{0})
+	var b strings.Builder
+	b.WriteString(channel)
+	b.WriteByte(0)
+	b.WriteString(campaignID)
+	b.WriteByte(0)
 	sorted := make([]string, len(tags))
 	copy(sorted, tags)
 	sort.Strings(sorted)
 	for _, tag := range sorted {
-		h.WriteString(tag)
-		h.Write([]byte{0})
+		b.WriteString(tag)
+		b.WriteByte(0)
 	}
-	h.WriteString(metadata)
-	return h.Sum64()
+	b.WriteString(metadata)
+	return xxhash.Sum64String(b.String())
 }
 
 // ToEvent converts a validated RawEvent to a domain Event.

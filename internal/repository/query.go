@@ -28,7 +28,7 @@ WHERE event_name = ? AND timestamp_ms >= ? AND timestamp_ms < ?`
 		}
 		return nil, fmt.Errorf("totals query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var totalCount uint64
 	var uniqueCount uint64
@@ -84,7 +84,7 @@ ORDER BY key`
 			}
 			return nil, fmt.Errorf("group query: %w", err)
 		}
-		defer grows.Close()
+		defer func() { _ = grows.Close() }()
 
 		for grows.Next() {
 			var key string

@@ -40,7 +40,7 @@ func (h *Handler) handleBulk(w http.ResponseWriter, r *http.Request) {
 		max = 1 << 20 // 1MB
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, max)
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeError(w, http.StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "request body too large")

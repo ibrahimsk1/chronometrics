@@ -10,7 +10,7 @@ import (
 )
 
 // EventPublisher is the strategy seam used by the ingest use-case.
-// Implementations: internal/buffer.Buffer (memory) and internal/broker.Publisher (nats).
+// Implementation: internal/buffer.Buffer (memory).
 type EventPublisher interface {
 	Publish(ctx context.Context, event domain.Event) error
 	Close(ctx context.Context) error

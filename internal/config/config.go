@@ -30,29 +30,6 @@ type BufferConfig struct {
 	FlushIntervalDuration time.Duration
 	FlushTimeout          time.Duration
 }
-
-type NATSConfig struct {
-	URL            string
-	StreamName     string
-	Subject        string
-	MaxBytes       int64
-	Replicas       int
-	PublishTimeout time.Duration
-}
-
-type ConsumerConfig struct {
-	DurableName   string
-	AckWait       time.Duration
-	MaxDeliver    int
-	MaxAckPending int
-	BatchSize     int
-	BatchTimeout  time.Duration
-	FlushTimeout  time.Duration
-	HealthPort    int
-	// legacy / compatibility
-	PullBatchSize int
-}
-
 type ClickHouseConfig struct {
 	DSN          string // kept for compatibility
 	Addr         string
@@ -71,21 +48,17 @@ type ValidationConfig struct {
 }
 
 type Config struct {
-	// BufferStrategy is the active buffer strategy ("memory", "nats", "nats-embedded").
-	// Kept as the canonical field per TDD.
+	// BufferStrategy is the active buffer strategy; kept for compatibility but only "memory" is supported.
 	BufferStrategy string
 
-	Server         ServerConfig
-	Buffer         BufferConfig
-	NATS           NATSConfig
-	Consumer       ConsumerConfig
-	ClickHouse     ClickHouseConfig
-	Validation     ValidationConfig
+	Server     ServerConfig
+	Buffer     BufferConfig
+	ClickHouse ClickHouseConfig
+	Validation ValidationConfig
 }
 
 var (
 	ErrInvalidRange   = errors.New("invalid range in config")
-	ErrMissingNatsURL = errors.New("nats strategy requires CHRONOMETRICS_NATS_URL or NATS_URL")
 )
 
 // envAny returns the first non-empty environment variable value for the given keys.
@@ -110,9 +83,8 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("load .env: %w", err)
 		}
 	}
-	// defaults from TDD
+		// defaults from TDD
 	cfg := Config{
-		Strategy:       "memory",
 		BufferStrategy: "memory",
 		Server: ServerConfig{
 			Port:            8080,
@@ -131,25 +103,7 @@ func Load() (Config, error) {
 			FlushIntervalDuration: 100 * time.Millisecond,
 			FlushTimeout:          10 * time.Second,
 		},
-		NATS: NATSConfig{
-			URL:            "",
-			StreamName:     "EVENTS",
-			Subject:        "events.ingest",
-			MaxBytes:       10737418240, // 10 GB
-			Replicas:       1,
-			PublishTimeout: 2 * time.Second,
-		},
-		Consumer: ConsumerConfig{
-			DurableName:   "flusher",
-			AckWait:       30 * time.Second,
-			MaxDeliver:    5,
-			MaxAckPending: 5000,
-			BatchSize:     1000,
-			BatchTimeout:  100 * time.Millisecond,
-			FlushTimeout:  10 * time.Second,
-			HealthPort:    8081,
-			PullBatchSize: 100,
-		},
+		// NATS and consumer configuration removed — this build supports memory-only strategy.
 		ClickHouse: ClickHouseConfig{
 			DSN:          "",
 			Addr:         "localhost:9000",
@@ -255,73 +209,7 @@ func Load() (Config, error) {
 		}
 	}
 
-	// NATS
-	// NATS URL (support TDD and legacy)
-	if v, ok := envAny("CHRONOMETRICS_NATS_URL", "NATS_URL"); ok && v != "" {
-		cfg.NATS.URL = v
-	}
-	if v, ok := envAny("CHRONOMETRICS_NATS_STREAM_NAME"); ok && v != "" {
-		cfg.NATS.StreamName = v
-	}
-	if v, ok := envAny("CHRONOMETRICS_NATS_SUBJECT"); ok && v != "" {
-		cfg.NATS.Subject = v
-	}
-	if v, ok := envAny("CHRONOMETRICS_NATS_MAX_BYTES"); ok && v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
-			cfg.NATS.MaxBytes = n
-		}
-	}
-	if v, ok := envAny("CHRONOMETRICS_NATS_REPLICAS"); ok && v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.NATS.Replicas = n
-		}
-	}
-	if v, ok := envAny("CHRONOMETRICS_NATS_PUBLISH_TIMEOUT"); ok && v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			cfg.NATS.PublishTimeout = d
-		}
-	}
-
-	// Consumer
-	if v, ok := envAny("CHRONOMETRICS_CONSUMER_DURABLE_NAME"); ok && v != "" {
-		cfg.Consumer.DurableName = v
-	}
-	if v, ok := envAny("CHRONOMETRICS_CONSUMER_ACK_WAIT"); ok && v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			cfg.Consumer.AckWait = d
-		}
-	}
-	if v, ok := envAny("CHRONOMETRICS_CONSUMER_MAX_DELIVER"); ok && v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Consumer.MaxDeliver = n
-		}
-	}
-	if v, ok := envAny("CHRONOMETRICS_CONSUMER_MAX_ACK_PENDING"); ok && v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Consumer.MaxAckPending = n
-		}
-	}
-	if v, ok := envAny("CHRONOMETRICS_CONSUMER_BATCH_SIZE"); ok && v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Consumer.BatchSize = n
-			cfg.Consumer.PullBatchSize = n
-		}
-	}
-	if v, ok := envAny("CHRONOMETRICS_CONSUMER_BATCH_TIMEOUT"); ok && v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			cfg.Consumer.BatchTimeout = d
-		}
-	}
-	if v, ok := envAny("CHRONOMETRICS_CONSUMER_FLUSH_TIMEOUT"); ok && v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			cfg.Consumer.FlushTimeout = d
-		}
-	}
-	if v, ok := envAny("CHRONOMETRICS_CONSUMER_HEALTH_PORT"); ok && v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Consumer.HealthPort = n
-		}
-	}
+	// NATS and consumer env parsing removed (memory-only).
 
 	// ClickHouse
 	if v, ok := envAny("CHRONOMETRICS_CLICKHOUSE_ADDR"); ok && v != "" {
@@ -366,7 +254,6 @@ func Load() (Config, error) {
 
 	// Required environment variables: fail fast if missing so app init cannot proceed with implicit defaults.
 	required := []string{
-		"CHRONOMETRICS_BUFFER_STRATEGY",
 		"CHRONOMETRICS_CLICKHOUSE_ADDR",
 		"CHRONOMETRICS_CLICKHOUSE_DATABASE",
 		"CHRONOMETRICS_CLICKHOUSE_USERNAME",
@@ -395,12 +282,7 @@ func Load() (Config, error) {
 		return Config{}, errors.New("buffer flush_retries out of range (0-10)")
 	}
 
-	// Strategy-specific validations
-	if cfg.BufferStrategy == "nats" || cfg.BufferStrategy == "nats-embedded" {
-		if cfg.NATS.URL == "" {
-			return Config{}, ErrMissingNatsURL
-		}
-	}
+	// Only memory strategy is supported in this codebase iteration. Other strategies removed.
 
 	return cfg, nil
 }
@@ -412,7 +294,7 @@ func loadDotEnv(path string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
@@ -435,7 +317,7 @@ func loadDotEnv(path string) error {
 			return fmt.Errorf("invalid key in %s: %q", path, line)
 		}
 		if cur, ok := os.LookupEnv(key); !ok || cur == "" {
-			os.Setenv(key, val)
+			_ = os.Setenv(key, val)
 		}
 	}
 	if err := sc.Err(); err != nil {

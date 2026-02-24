@@ -28,7 +28,6 @@ type HealthStatus struct {
 	BufferStrategy string `json:"buffer_strategy,omitempty"`
 	UptimeSeconds  int64  `json:"uptime_seconds,omitempty"`
 	ClickHouse     string `json:"clickhouse,omitempty"`
-	NATS           string `json:"nats,omitempty"`
 }
 
 // HealthChecker provides a health snapshot for the handler.
