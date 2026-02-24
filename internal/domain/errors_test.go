@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestSentinelErrors_Is(t *testing.T) {
@@ -32,7 +33,7 @@ func TestSentinelErrors_Wrapping(t *testing.T) {
 
 func TestValidationError_Is(t *testing.T) {
 	var r RawEvent
-	err := r.Validate()
+	err := Validate(&r, 1*time.Minute, 24*time.Hour)
 	if err == nil {
 		t.Fatalf("expected ValidationError")
 	}

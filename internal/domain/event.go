@@ -1,116 +1,132 @@
 package domain
 
 import (
-	"errors"
+	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/cespare/xxhash/v2"
 )
 
-// RawEvent represents the incoming event payload as sent by the API.
+// RawEvent is the incoming JSON payload before validation and normalization.
+// Field names match system_design §0.1 glossary.
 type RawEvent struct {
-	ID        string                 `json:"id"`
-	Type      string                 `json:"type"`
-	Timestamp int64                  `json:"timestamp"`
-	Data      map[string]interface{} `json:"data,omitempty"`
+	EventName  string                 `json:"event_name"`
+	UserID     string                 `json:"user_id"`
+	Timestamp  int64                  `json:"timestamp"`
+	Channel    string                 `json:"channel,omitempty"`
+	CampaignID string                 `json:"campaign_id,omitempty"`
+	Tags       []string               `json:"tags,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// Event is the canonical domain representation after normalization.
+// Event is the canonical domain entity after validation and normalization.
+// Maps to system_design §4.1 Event entity.
+// JSON tags are required because Event is serialized to NATS messages (nats strategy).
 type Event struct {
-	ID          string                 `json:"id"`
-	Type        string                 `json:"type"`
-	TimestampMS int64                  `json:"timestamp_ms"`
-	Data        map[string]interface{} `json:"data,omitempty"`
-	PayloadHash string                 `json:"payload_hash,omitempty"`
+	EventName   string   `json:"event_name"`
+	UserID      string   `json:"user_id"`
+	TimestampMs uint64   `json:"timestamp_ms"`
+	PayloadHash uint64   `json:"payload_hash"`
+	Channel     string   `json:"channel"`
+	CampaignID  string   `json:"campaign_id"`
+	Tags        []string `json:"tags"`
+	Metadata    string   `json:"metadata"`
 }
 
-// BulkRequest represents a bulk ingest request containing multiple RawEvent entries.
+// BulkRequest is the incoming JSON for POST /events/bulk.
 type BulkRequest struct {
 	Events []RawEvent `json:"events"`
 }
 
-// ValidationError indicates input failed domain validation.
-type ValidationError struct {
-	Msg string
-}
-
-func (v *ValidationError) Error() string { return fmt.Sprintf("validation: %s", v.Msg) }
-
-// IsValidationError returns true when err is a ValidationError.
-func IsValidationError(err error) bool {
-	var ve *ValidationError
-	return errors.As(err, &ve)
-}
-
-// Validate ensures required fields are present and within expected bounds.
-func (r *RawEvent) Validate() error {
-	if r == nil {
-		return &ValidationError{Msg: "raw event is nil"}
+// Validate enforces invariants I1 (required fields) and I2 (timestamp bounds).
+// See system_design §4.3.
+func Validate(e *RawEvent, maxFuture, maxPast time.Duration) error {
+	if e == nil {
+		return &ValidationError{Errors: []string{"raw event is nil"}}
 	}
-	if r.ID == "" {
-		return &ValidationError{Msg: "id required"}
+	var errs []string
+	if strings.TrimSpace(e.EventName) == "" {
+		errs = append(errs, "event_name is required")
 	}
-	if r.Type == "" {
-		return &ValidationError{Msg: "type required"}
+	if strings.TrimSpace(e.UserID) == "" {
+		errs = append(errs, "user_id is required")
 	}
-	if r.Timestamp <= 0 {
-		return &ValidationError{Msg: "timestamp required and must be > 0"}
+	if e.Timestamp <= 0 {
+		errs = append(errs, "timestamp must be positive")
+	} else {
+		tsMs := NormalizeTimestamp(e.Timestamp)
+		now := uint64(time.Now().UnixMilli())
+		if tsMs > now+uint64(maxFuture.Milliseconds()) {
+			errs = append(errs, fmt.Sprintf("timestamp too far in future (max %s)", maxFuture))
+		}
+		if tsMs < now-uint64(maxPast.Milliseconds()) {
+			errs = append(errs, fmt.Sprintf("timestamp too far in past (max %s)", maxPast))
+		}
 	}
-	// Basic sanity bound: not unreasonably large (milliseconds epoch ~1e12..1e14)
-	if r.Timestamp > 1e16 {
-		return &ValidationError{Msg: "timestamp out of bounds"}
+	if len(errs) > 0 {
+		return &ValidationError{Errors: errs}
 	}
 	return nil
 }
 
-// NormalizeTimestamp converts seconds to milliseconds when needed.
-// Heuristic: if timestamp < 1e12 treat as seconds and convert to milliseconds.
-func NormalizeTimestamp(ts int64) int64 {
-	if ts < 1e12 {
-		return ts * 1000
+// NormalizeTimestamp converts seconds to milliseconds if needed.
+// Detection: values < 10^12 are treated as seconds (see system_design §7.4).
+func NormalizeTimestamp(ts int64) uint64 {
+	const msThreshold = int64(1e12)
+	if ts < msThreshold {
+		return uint64(ts) * 1000
 	}
-	return ts
+	return uint64(ts)
 }
 
-// ToEvent converts RawEvent to canonical Event applying normalization.
-func (r *RawEvent) ToEvent() (Event, error) {
-	if err := r.Validate(); err != nil {
-		return Event{}, err
+// ComputePayloadHash computes xxHash64 over canonical payload fields.
+// Canonical form: channel + campaignID + sorted(tags) + JSON(metadata).
+// Null byte separators prevent field boundary ambiguity.
+// See system_design §7.4, ADR-0005.
+func ComputePayloadHash(channel, campaignID string, tags []string, metadata string) uint64 {
+	h := xxhash.New()
+	h.WriteString(channel)
+	h.Write([]byte{0})
+	h.WriteString(campaignID)
+	h.Write([]byte{0})
+	sorted := make([]string, len(tags))
+	copy(sorted, tags)
+	sort.Strings(sorted)
+	for _, tag := range sorted {
+		h.WriteString(tag)
+		h.Write([]byte{0})
 	}
-	ev := Event{
-		ID:          r.ID,
-		Type:        r.Type,
-		TimestampMS: NormalizeTimestamp(r.Timestamp),
-		Data:        r.Data,
-	}
+	h.WriteString(metadata)
+	return h.Sum64()
+}
 
-	// extract optional metadata for hash inputs
-	channel := ""
-	campaignID := ""
-	var tags []string
-	if r.Data != nil {
-		if v, ok := r.Data["channel"].(string); ok {
-			channel = v
+// ToEvent converts a validated RawEvent to a domain Event.
+func ToEvent(raw *RawEvent) (Event, error) {
+	var metadataStr string
+	if raw.Metadata != nil {
+		b, err := json.Marshal(raw.Metadata)
+		if err != nil {
+			return Event{}, fmt.Errorf("marshal metadata: %w", err)
 		}
-		if v, ok := r.Data["campaign_id"].(string); ok {
-			campaignID = v
-		}
-		if v, ok := r.Data["tags"]; ok {
-			switch tv := v.(type) {
-			case []interface{}:
-				for _, e := range tv {
-					if s, ok := e.(string); ok {
-						tags = append(tags, s)
-					}
-				}
-			case []string:
-				tags = append(tags, tv...)
-			}
-		}
+		metadataStr = string(b)
 	}
-
-	ph, err := ComputePayloadHash(channel, campaignID, tags, r.Data)
-	if err != nil {
-		return Event{}, err
+	tags := raw.Tags
+	if tags == nil {
+		tags = []string{}
 	}
-	ev.PayloadHash = ph
-	return ev, nil
+	tsMs := NormalizeTimestamp(raw.Timestamp)
+	hash := ComputePayloadHash(raw.Channel, raw.CampaignID, tags, metadataStr)
+	return Event{
+		EventName:   raw.EventName,
+		UserID:      raw.UserID,
+		TimestampMs: tsMs,
+		PayloadHash: hash,
+		Channel:     raw.Channel,
+		CampaignID:  raw.CampaignID,
+		Tags:        tags,
+		Metadata:    metadataStr,
+	}, nil
 }
