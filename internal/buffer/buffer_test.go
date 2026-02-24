@@ -129,3 +129,51 @@ func TestBuffer_FlushTriggeredByBatchSize(t *testing.T) {
 		t.Fatalf("timeout waiting for flush by batch size")
 	}
 }
+
+func TestBuffer_Close_DrainsRemaining(t *testing.T) {
+	ctx := context.Background()
+	cfg := config.BufferConfig{Capacity: 100, FlushInterval: 10000, FlushBatchSize: 1000, FlushRetries: 1, FlushTimeoutMs: 100}
+	fl := &recordingFlusher{ch: make(chan []domain.Event, 1)}
+	b := New(ctx, fl, cfg)
+	b.Start(ctx, fl)
+
+	// publish 2 events (less than batch size), rely on Close to flush them
+	for i := 0; i < 2; i++ {
+		ev := domain.Event{ID: fmt.Sprintf("e%d", i), Type: "t", TimestampMS: int64(i)}
+		if err := b.Publish(ctx, ev); err != nil {
+			t.Fatalf("publish failed: %v", err)
+		}
+	}
+
+	// Close should trigger final flush and wait for it to complete
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	if err := b.Close(shutdownCtx); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+
+	select {
+	case batch := <-fl.ch:
+		if len(batch) != 2 {
+			t.Fatalf("expected batch len 2 after Close, got %d", len(batch))
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatalf("timeout waiting for final flush after Close")
+	}
+}
+
+func TestBuffer_Close_Idempotent(t *testing.T) {
+	ctx := context.Background()
+	cfg := config.BufferConfig{Capacity: 10, FlushInterval: 10000, FlushBatchSize: 100, FlushRetries: 1, FlushTimeoutMs: 100}
+	fl := &recordingFlusher{ch: make(chan []domain.Event, 1)}
+	b := New(ctx, fl, cfg)
+	b.Start(ctx, fl)
+
+	if err := b.Close(ctx); err != nil {
+		t.Fatalf("first Close failed: %v", err)
+	}
+	// second close should be no-op and return nil
+	if err := b.Close(ctx); err != nil {
+		t.Fatalf("second Close failed: %v", err)
+	}
+}
