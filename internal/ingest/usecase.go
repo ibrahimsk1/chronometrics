@@ -22,3 +22,11 @@ type UseCase struct {
 	maxPast   time.Duration
 }
 
+// NewUseCase constructs a UseCase with the provided publisher and validation windows.
+func NewUseCase(pub EventPublisher, maxFuture, maxPast time.Duration) *UseCase {
+	return &UseCase{
+		publisher: pub,
+		maxFuture: maxFuture,
+		maxPast:   maxPast,
+	}
+}
