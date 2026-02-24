@@ -29,4 +29,3 @@ func NewUseCase(pub EventPublisher, maxFuture, maxPast time.Duration) *UseCase {
 		maxPast:   maxPast,
 	}
 }
-
