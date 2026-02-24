@@ -13,8 +13,8 @@ services:
       target: ingestor
     depends_on:
       - clickhouse
-    environment:
-      - EVENTMETRICS_BUFFER_STRATEGY=memory
+    env_file:
+      - .env
     ports:
       - "8080:8080"
     # included by default for smoke tests (memory strategy)
@@ -25,6 +25,8 @@ services:
       target: consumer
     depends_on:
       - clickhouse
+    env_file:
+      - .env
     # consumer runs only for nats strategies in full CI; excluded from default smoke
 
   nats:

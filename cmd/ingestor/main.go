@@ -37,12 +37,12 @@ func main() {
 	ing := handler.NewUseCaseAdapter(uc)
 
 	// Use repository for metrics queries and health if available.
-	var healthChecker handler.HealthChecker = &simpleHealth{
-		status: handler.HealthStatus{
-			Status:         "healthy",
-			BufferStrategy: base.Config.Strategy,
-		},
-	}
+		var healthChecker handler.HealthChecker = &simpleHealth{
+			status: handler.HealthStatus{
+				Status:         "healthy",
+				BufferStrategy: base.Config.BufferStrategy,
+			},
+		}
 	var querier handler.MetricsQuerier
 	if base.Repository != nil {
 		healthChecker = base.Repository
@@ -58,7 +58,7 @@ func main() {
 
 	// Start server
 	go func() {
-		log.Printf("starting ingestor on %s (strategy=%s)", srv.Addr, base.Config.Strategy)
+		log.Printf("starting ingestor on %s (buffer_strategy=%s)", srv.Addr, base.Config.BufferStrategy)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server error: %v", err)
 		}
