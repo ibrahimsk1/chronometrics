@@ -1,0 +1,40 @@
+version: "3.9"
+services:
+  clickhouse:
+    image: yandex/clickhouse-server:latest
+    ports:
+      - "8123:8123"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+
+  ingestor:
+    build:
+      context: .
+      target: ingestor
+    depends_on:
+      - clickhouse
+    environment:
+      - EVENTMETRICS_BUFFER_STRATEGY=memory
+    ports:
+      - "8080:8080"
+    profiles: ["memory","nats-single","nats"]
+
+  consumer:
+    build:
+      context: .
+      target: consumer
+    depends_on:
+      - clickhouse
+    profiles: ["nats","nats-single"]
+
+  nats:
+    image: nats:2.10.0
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    profiles: ["nats","nats-single"]
+
+volumes:
+  clickhouse-data:
+    name: clickhouse-data
+
