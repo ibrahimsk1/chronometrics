@@ -20,7 +20,7 @@ func TestBuffer_Admit(t *testing.T) {
 	fl := &fakeFlusher{}
 	b := New(ctx, fl, cfg)
 
-	ev := domain.Event{EventName: "e", UserID: "u"}
+	ev := domain.Event{ID: "e1", Type: "event_type", TimestampMS: 1234567890}
 	if err := b.Publish(ctx, ev); err != nil {
 		t.Fatalf("expected first publish to succeed, got error: %v", err)
 	}
