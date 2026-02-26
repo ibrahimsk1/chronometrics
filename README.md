@@ -1,4 +1,4 @@
-# Chronometrics — Event Ingestor (Insider One Assessment)
+# Chronometrics — Event Ingestor
 
 Minimal backend service that ingests JSON events and exposes aggregated metrics.
 
