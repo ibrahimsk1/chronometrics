@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"eventmetrics/internal/handler"
+	"eventmetrics/internal/health"
 
 	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
 )
@@ -122,9 +122,9 @@ func (r *Repository) Ping(ctx context.Context) error {
 	return r.conn.Ping(ctx)
 }
 
-// Health implements handler.HealthChecker by delegating to Ping.
-func (r *Repository) Health(ctx context.Context) handler.HealthStatus {
-	status := handler.HealthStatus{
+// Health returns a domain.HealthStatus reflecting ClickHouse connectivity.
+func (r *Repository) Health(ctx context.Context) health.HealthStatus {
+	status := health.HealthStatus{
 		Status: "degraded",
 	}
 	if err := r.Ping(ctx); err == nil {
@@ -142,4 +142,3 @@ func (r *Repository) RunMigrations(ctx context.Context) error {
 	// Apply all SQL files in migrations/ in sorted order.
 	return ApplyMigrations(ctx, r.conn, "migrations")
 }
-

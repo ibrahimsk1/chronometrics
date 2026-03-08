@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"eventmetrics/internal/domain"
+	"eventmetrics/internal/health"
 )
 
 // Handler is the HTTP adapter entrypoint.
@@ -108,5 +109,5 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, h.health.Health(r.Context()))
 		return
 	}
-	writeJSON(w, http.StatusOK, HealthStatus{Status: "healthy"})
+	writeJSON(w, http.StatusOK, health.HealthStatus{Status: "healthy"})
 }
