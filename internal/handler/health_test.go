@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"eventmetrics/internal/health"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,8 +11,8 @@ import (
 
 type fakeHealthOK struct{}
 
-func (f *fakeHealthOK) Health(ctx context.Context) HealthStatus {
-	return HealthStatus{
+func (f *fakeHealthOK) Health(ctx context.Context) health.HealthStatus {
+	return health.HealthStatus{
 		Status:         "healthy",
 		BufferStrategy: "memory",
 		ClickHouse:     "connected",

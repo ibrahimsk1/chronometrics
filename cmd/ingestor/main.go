@@ -36,16 +36,10 @@ func main() {
 
 	ing := handler.NewUseCaseAdapter(uc)
 
-	// Use repository for metrics queries and health if available.
-		var healthChecker handler.HealthChecker = &simpleHealth{
-			status: handler.HealthStatus{
-				Status:         "healthy",
-				BufferStrategy: base.Config.BufferStrategy,
-			},
-		}
+	var healthChecker handler.HealthChecker
 	var querier handler.MetricsQuerier
 	if base.Repository != nil {
-		healthChecker = base.Repository
+		healthChecker = app.NewHealthChecker(base)
 		querier = base.Repository
 	}
 
@@ -71,13 +65,4 @@ func main() {
 	_ = srv.Shutdown(shutdownCtx)
 	base.Shutdown(shutdownCtx)
 	log.Printf("ingestor shutdown complete")
-}
-
-// simpleHealth adapts a HealthStatus for the handler.HealthChecker interface.
-type simpleHealth struct {
-	status handler.HealthStatus
-}
-
-func (s *simpleHealth) Health(ctx context.Context) handler.HealthStatus {
-	return s.status
 }

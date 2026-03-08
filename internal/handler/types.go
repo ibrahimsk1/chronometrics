@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"eventmetrics/internal/domain"
+	"eventmetrics/internal/health"
 )
 
 // ServerConfig represents minimal server config needed by handlers.
@@ -23,16 +24,8 @@ type MetricsQuerier interface {
 	Query(ctx context.Context, params domain.QueryParams) (*domain.MetricResult, error)
 }
 
-// HealthStatus is the JSON shape returned by health endpoint.
-type HealthStatus struct {
-	Status         string `json:"status"`
-	BufferStrategy string `json:"buffer_strategy,omitempty"`
-	UptimeSeconds  int64  `json:"uptime_seconds,omitempty"`
-	ClickHouse     string `json:"clickhouse,omitempty"`
-}
-
 // HealthChecker provides a health snapshot for the handler.
 // Aligned with TDD: returns HealthStatus (no error).
 type HealthChecker interface {
-	Health(ctx context.Context) HealthStatus
+	Health(ctx context.Context) health.HealthStatus
 }
