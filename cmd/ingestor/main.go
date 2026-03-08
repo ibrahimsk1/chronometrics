@@ -39,7 +39,7 @@ func main() {
 	var healthChecker handler.HealthChecker
 	var querier handler.MetricsQuerier
 	if base.Repository != nil {
-		healthChecker = base.Repository
+		healthChecker = app.NewHealthChecker(base)
 		querier = base.Repository
 	}
 
