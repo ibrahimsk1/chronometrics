@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS events (
     channel      String DEFAULT '',
     campaign_id  String DEFAULT '',
     tags         Array(String) DEFAULT [],
+    priority     Nullable(String),
     metadata     String DEFAULT '',
     _inserted_at DateTime DEFAULT now()
 ) ENGINE = ReplacingMergeTree(_inserted_at)
