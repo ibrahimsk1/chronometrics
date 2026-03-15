@@ -2,67 +2,25 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
-	"net/http"
+	"log/slog"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"eventmetrics/internal/app"
-	"eventmetrics/internal/handler"
-	"eventmetrics/internal/ingest"
+	"eventmetrics/internal/logger"
 )
 
 func main() {
+	log := logger.New(logger.Options{Level: slog.LevelInfo})
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	base, err := app.Setup(ctx)
+	a, err := app.Build(ctx, log)
 	if err != nil {
-		log.Fatalf("setup failed: %v", err)
-	}
-	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		base.Shutdown(shutdownCtx)
-	}()
-
-	// Create use-case with validation windows from config (seconds -> time.Duration).
-	uc := ingest.NewUseCase(base.Publisher,
-		base.Config.Validation.MaxFutureDuration,
-		base.Config.Validation.MaxPastDuration,
-	)
-
-	ing := handler.NewUseCaseAdapter(uc)
-
-	var healthChecker handler.HealthChecker
-	var querier handler.MetricsQuerier
-	if base.Repository != nil {
-		healthChecker = app.NewHealthChecker(base)
-		querier = base.Repository
+		log.Error("setup failed", "error", err)
+		return
 	}
 
-	h := handler.New(ing, querier, healthChecker, handler.ServerConfig{MaxBodyBytes: 1 << 20})
-
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", base.Config.Server.Port),
-		Handler: h.Router(),
-	}
-
-	// Start server
-	go func() {
-		log.Printf("starting ingestor on %s (buffer_strategy=%s)", srv.Addr, base.Config.BufferStrategy)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
-		}
-	}()
-
-	<-ctx.Done()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	log.Printf("shutting down ingestor")
-	_ = srv.Shutdown(shutdownCtx)
-	base.Shutdown(shutdownCtx)
-	log.Printf("ingestor shutdown complete")
+	a.Run(ctx)
 }
