@@ -14,6 +14,7 @@ import (
 	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
 	tc "github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"log/slog"
 	"path/filepath"
 )
 
@@ -79,7 +80,7 @@ func TestMain(m *testing.M) {
 		RetryMaxDelay:  5 * time.Second,
 	}
 	var connectErr error
-	repository, connectErr = repo.Connect(ctx, opts, repoCfg)
+	repository, connectErr = repo.Connect(ctx, opts, repoCfg, nil, slog.Default())
 	if connectErr != nil {
 		fmt.Println("failed to connect to clickhouse:", connectErr)
 		_ = container.Terminate(ctx)

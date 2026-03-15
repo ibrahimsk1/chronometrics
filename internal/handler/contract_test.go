@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,7 +11,7 @@ import (
 
 func TestResponse_SchemaMatch_IngestErrors(t *testing.T) {
 	ing := &fakeIngesterOK{}
-	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
@@ -33,7 +34,7 @@ func TestResponse_SchemaMatch_IngestErrors(t *testing.T) {
 
 func TestResponse_SchemaMatch_BulkAcceptedShape(t *testing.T) {
 	ing := &fakeIngesterOK{}
-	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
@@ -57,7 +58,7 @@ func TestResponse_SchemaMatch_BulkAcceptedShape(t *testing.T) {
 
 func TestResponse_SchemaMatch_Health(t *testing.T) {
 	hc := &fakeHealthOK{}
-	h := New(nil, nil, hc, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(nil, nil, hc, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 

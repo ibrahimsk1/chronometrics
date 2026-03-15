@@ -3,9 +3,11 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"eventmetrics/internal/health"
+	"eventmetrics/internal/observability"
 
 	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
 )
@@ -23,8 +25,10 @@ type Config struct {
 }
 
 type Repository struct {
-	conn clickhouse.Conn
-	cfg  Config
+	conn    clickhouse.Conn
+	cfg     Config
+	metrics *observability.Metrics
+	logger  *slog.Logger
 }
 
 // Close closes the underlying ClickHouse connection.
@@ -33,18 +37,18 @@ func (r *Repository) Close() error {
 }
 
 // New constructs a Repository with an open ClickHouse connection.
-func New(conn clickhouse.Conn, cfg Config) *Repository {
+func New(conn clickhouse.Conn, cfg Config, metrics *observability.Metrics, log *slog.Logger) *Repository {
 	if cfg.QueryTimeout == 0 {
 		cfg.QueryTimeout = 30 * time.Second
 	}
-	return &Repository{conn: conn, cfg: cfg}
+	return &Repository{conn: conn, cfg: cfg, metrics: metrics, logger: log.With("component", "repository")}
 }
 
 // Connect opens a pooled ClickHouse connection and verifies it with an
 // exponential-backoff ping, retrying up to cfg.MaxRetries times.
 // Pool settings (MaxOpenConns, MaxIdleConns, ConnMaxLifetime) are applied
 // to opts before opening so callers only need to set Addr and Auth.
-func Connect(ctx context.Context, opts *clickhouse.Options, cfg Config) (*Repository, error) {
+func Connect(ctx context.Context, opts *clickhouse.Options, cfg Config, metrics *observability.Metrics, log *slog.Logger) (*Repository, error) {
 	// Apply pool defaults.
 	if cfg.MaxOpenConns <= 0 {
 		cfg.MaxOpenConns = 10
@@ -86,6 +90,7 @@ func Connect(ctx context.Context, opts *clickhouse.Options, cfg Config) (*Reposi
 		if pingErr == nil {
 			break
 		}
+		log.Warn("clickhouse ping failed, retrying", "attempt", attempt, "error", pingErr)
 		if attempt < maxRetries {
 			delay := retryDelay(attempt, baseDelay, maxDelay)
 			select {
@@ -101,7 +106,7 @@ func Connect(ctx context.Context, opts *clickhouse.Options, cfg Config) (*Reposi
 		return nil, fmt.Errorf("clickhouse ping after %d retries: %w", maxRetries, pingErr)
 	}
 
-	return New(conn, cfg), nil
+	return New(conn, cfg, metrics, log), nil
 }
 
 // retryDelay returns the delay for the given attempt using exponential backoff

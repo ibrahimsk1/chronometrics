@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
 	"eventmetrics/internal/domain"
 )
@@ -12,14 +14,23 @@ func (r *Repository) Query(ctx context.Context, params domain.QueryParams) (*dom
 	// enforce configured timeout
 	qctx, cancel := context.WithTimeout(ctx, r.cfg.QueryTimeout)
 	defer cancel()
+	start := time.Now()
+	defer func() {
+		if r.metrics != nil {
+			result := "success"
+			if qctx.Err() != nil {
+				result = "error"
+			}
+			r.metrics.DBQueryDuration.WithLabelValues(result).Observe(time.Since(start).Seconds())
+		}
+	}()
 
 	// Totals query
 	totalsSQL := `
-SELECT
-  count() AS total_count,
-  uniqExact(user_id) AS unique_count
-FROM events FINAL
-WHERE event_name = ? AND timestamp_ms >= ? AND timestamp_ms < ?`
+		SELECT count() AS total_count, uniqExact(user_id) AS unique_count
+		FROM events FINAL
+		WHERE event_name = ? AND timestamp_ms >= ? AND timestamp_ms < ?
+	`
 
 	rows, err := r.conn.Query(qctx, totalsSQL, params.EventName, params.From, params.To)
 	if err != nil {
@@ -48,31 +59,43 @@ WHERE event_name = ? AND timestamp_ms >= ? AND timestamp_ms < ?`
 		Groups:      []domain.GroupResult{},
 	}
 
+	// switch case ile yazılmış. group by is parametize edilmemiş.
 	// If grouping requested, run group query
 	if params.GroupBy != "" {
 		var groupSQL string
 		switch params.GroupBy {
 		case "channel":
 			groupSQL = `
-SELECT channel AS key, count() AS total_count, uniqExact(user_id) AS unique_count
-FROM events FINAL
-WHERE event_name = ? AND timestamp_ms >= ? AND timestamp_ms < ?
-GROUP BY channel
-ORDER BY total_count DESC`
+				SELECT channel AS key, count() AS total_count, uniqExact(user_id) AS unique_count
+				FROM events FINAL
+				WHERE event_name = ? AND timestamp_ms >= ? AND timestamp_ms < ?
+				GROUP BY channel
+				ORDER BY total_count DESC
+			`
+		case "campaign_id":
+			groupSQL = `
+				SELECT campaign_id as key, count() as total_count, uniqExact(user_id) AS uniqie_count
+				From events FINAL
+				WHERE event_name = ? AND timestamp_ms >= ? AND timestamp_ms < ?
+				GROUP BY campaign_id
+				ORDER BY total_count DESC
+			`
 		case "hour":
 			groupSQL = `
-SELECT toISO8601(toStartOfHour(toDateTime(intDiv(timestamp_ms,1000)))) AS key, count() AS total_count, uniqExact(user_id) AS unique_count
-FROM events FINAL
-WHERE event_name = ? AND timestamp_ms >= ? AND timestamp_ms < ?
-GROUP BY toStartOfHour(toDateTime(intDiv(timestamp_ms,1000)))
-ORDER BY key`
+				SELECT toISO8601(toStartOfHour(toDateTime(intDiv(timestamp_ms,1000)))) AS key, count() AS total_count, uniqExact(user_id) AS unique_count
+				FROM events FINAL
+				WHERE event_name = ? AND timestamp_ms >= ? AND timestamp_ms < ?
+				GROUP BY toStartOfHour(toDateTime(intDiv(timestamp_ms,1000)))
+				ORDER BY key
+			`
 		case "day":
 			groupSQL = `
-SELECT toISO8601(toDate(toDateTime(intDiv(timestamp_ms,1000)))) AS key, count() AS total_count, uniqExact(user_id) AS unique_count
-FROM events FINAL
-WHERE event_name = ? AND timestamp_ms >= ? AND timestamp_ms < ?
-GROUP BY toDate(toDateTime(intDiv(timestamp_ms,1000)))
-ORDER BY key`
+				SELECT toISO8601(toDate(toDateTime(intDiv(timestamp_ms,1000)))) AS key, count() AS total_count, uniqExact(user_id) AS unique_count
+				FROM events FINAL
+				WHERE event_name = ? AND timestamp_ms >= ? AND timestamp_ms < ?
+				GROUP BY toDate(toDateTime(intDiv(timestamp_ms,1000)))
+				ORDER BY key
+			`
 		default:
 			return nil, fmt.Errorf("unsupported group_by: %q", params.GroupBy)
 		}
@@ -104,3 +127,19 @@ ORDER BY key`
 	return res, nil
 }
 
+var (
+	once            sync.Once
+	lookupDimension func(string) string
+)
+
+func get(key string) string {
+	once.Do(func() {
+		m := map[string]string{
+			"a": "b",
+		}
+		lookupDimension = func(key string) string {
+			return m[key]
+		}
+	})
+	return lookupDimension(key)
+}

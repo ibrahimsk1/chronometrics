@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,7 +21,7 @@ func (f *fakeIngesterFail) Ingest(ctx context.Context, e *domain.RawEvent) error
 
 func TestIngest_ValidEvent(t *testing.T) {
 	ing := &fakeIngesterOK{}
-	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
@@ -36,7 +37,7 @@ func TestIngest_ValidEvent(t *testing.T) {
 
 func TestIngest_PublishFailed(t *testing.T) {
 	ing := &fakeIngesterFail{}
-	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
@@ -55,7 +56,7 @@ func TestIngest_PublishFailed(t *testing.T) {
 
 func TestIngest_PayloadTooLarge(t *testing.T) {
 	ing := &fakeIngesterOK{}
-	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 10}) // tiny limit
+	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 10}, nil, slog.Default(), nil) // tiny limit
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 

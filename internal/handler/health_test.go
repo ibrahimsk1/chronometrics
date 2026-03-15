@@ -2,11 +2,13 @@ package handler
 
 import (
 	"context"
-	"eventmetrics/internal/health"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"eventmetrics/internal/health"
 )
 
 type fakeHealthOK struct{}
@@ -21,7 +23,7 @@ func (f *fakeHealthOK) Health(ctx context.Context) health.HealthStatus {
 
 func TestHealth_Returns200(t *testing.T) {
 	hc := &fakeHealthOK{}
-	h := New(nil, nil, hc, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(nil, nil, hc, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
@@ -41,7 +43,7 @@ func TestHealth_Returns200(t *testing.T) {
 }
 
 func TestMiddleware_BodyTooLarge(t *testing.T) {
-	h := New(nil, nil, nil, ServerConfig{MaxBodyBytes: 10})
+	h := New(nil, nil, nil, ServerConfig{MaxBodyBytes: 10}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 

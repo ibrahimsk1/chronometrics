@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -32,7 +33,7 @@ func TestBulk_PartialSuccess(t *testing.T) {
 	// fail middle item
 	failMap := map[string]struct{}{"u2": {}}
 	ing := &fakeIngesterSelective{failIDs: failMap}
-	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
@@ -50,7 +51,7 @@ func TestBulk_AllInvalid(t *testing.T) {
 	// Use a real use-case (with nop publisher) so validation runs in domain.Validate.
 	uc := ingest.NewUseCase(&nopPublisher{}, time.Hour, 24*time.Hour)
 	ing := NewUseCaseAdapter(uc)
-	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
@@ -67,7 +68,7 @@ func TestBulk_AllInvalid(t *testing.T) {
 
 func TestBulk_PayloadTooLarge(t *testing.T) {
 	ing := &fakeIngesterOK{}
-	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 10}) // tiny limit
+	h := New(ing, nil, nil, ServerConfig{MaxBodyBytes: 10}, nil, slog.Default(), nil) // tiny limit
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -25,7 +26,7 @@ func BenchmarkBuffer_Publish(b *testing.B) {
 		FlushTimeoutMs:        1000,
 	}
 	fl := &fakeFlusher{}
-	buf := New(ctx, cfg)
+	buf := New(ctx, cfg, nil, slog.Default())
 	buf.Start(ctx, fl)
 	defer buf.Close(ctx)
 
@@ -48,7 +49,7 @@ func TestBuffer_Admit(t *testing.T) {
 	ctx := context.Background()
 	cfg := config.BufferConfig{Capacity: 2, FlushInterval: 1}
 	fl := &fakeFlusher{}
-	b := New(ctx, cfg)
+	b := New(ctx, cfg, nil, slog.Default())
 	b.Start(ctx, fl)
 
 	ev := domain.Event{
@@ -74,7 +75,7 @@ func TestBuffer_ConfigDefaults(t *testing.T) {
 	// zero capacity should fall back to default (1000)
 	cfg := config.BufferConfig{Capacity: 0, FlushInterval: 1}
 	fl := &fakeFlusher{}
-	b := New(ctx, cfg)
+	b := New(ctx, cfg, nil, slog.Default())
 	b.Start(ctx, fl)
 	if b.capacity <= 0 {
 		t.Fatalf("expected positive capacity, got %d", b.capacity)
@@ -85,7 +86,7 @@ func TestBuffer_Full_ReturnsPublishFailed(t *testing.T) {
 	ctx := context.Background()
 	cfg := config.BufferConfig{Capacity: 1, FlushInterval: 1}
 	fl := &fakeFlusher{}
-	b := New(ctx, cfg)
+	b := New(ctx, cfg, nil, slog.Default())
 	b.Start(ctx, fl)
 
 	ev := domain.Event{
@@ -134,7 +135,7 @@ func TestBuffer_FlushTriggeredByInterval(t *testing.T) {
 		FlushTimeout:          100 * time.Millisecond,
 	}
 	fl := &recordingFlusher{ch: make(chan []domain.Event, 1)}
-	b := New(ctx, cfg)
+	b := New(ctx, cfg, nil, slog.Default())
 	b.Start(ctx, fl)
 
 	ev := domain.Event{
@@ -165,7 +166,7 @@ func TestBuffer_FlushTriggeredByBatchSize(t *testing.T) {
 	ctx := context.Background()
 	cfg := config.BufferConfig{Capacity: 100, FlushInterval: 1000, FlushBatchSize: 3, FlushRetries: 1, FlushTimeoutMs: 100}
 	fl := &recordingFlusher{ch: make(chan []domain.Event, 1)}
-	b := New(ctx, cfg)
+	b := New(ctx, cfg, nil, slog.Default())
 	b.Start(ctx, fl)
 
 	for i := 0; i < 3; i++ {
@@ -198,7 +199,7 @@ func TestBuffer_Close_DrainsRemaining(t *testing.T) {
 	ctx := context.Background()
 	cfg := config.BufferConfig{Capacity: 100, FlushInterval: 10000, FlushBatchSize: 1000, FlushRetries: 1, FlushTimeoutMs: 100}
 	fl := &recordingFlusher{ch: make(chan []domain.Event, 1)}
-	b := New(ctx, cfg)
+	b := New(ctx, cfg, nil, slog.Default())
 	b.Start(ctx, fl)
 
 	// publish 2 events (less than batch size), rely on Close to flush them
@@ -239,7 +240,7 @@ func TestBuffer_Close_Idempotent(t *testing.T) {
 	ctx := context.Background()
 	cfg := config.BufferConfig{Capacity: 10, FlushInterval: 10000, FlushBatchSize: 100, FlushRetries: 1, FlushTimeoutMs: 100}
 	fl := &recordingFlusher{ch: make(chan []domain.Event, 1)}
-	b := New(ctx, cfg)
+	b := New(ctx, cfg, nil, slog.Default())
 	b.Start(ctx, fl)
 
 	if err := b.Close(ctx); err != nil {
@@ -265,7 +266,7 @@ func TestBuffer_PeakLoad_20k(t *testing.T) {
 		FlushTimeoutMs:        1000,
 	}
 	fl := &fakeFlusher{}
-	buf := New(ctx, cfg)
+	buf := New(ctx, cfg, nil, slog.Default())
 	buf.Start(ctx, fl)
 	defer buf.Close(ctx)
 
@@ -320,7 +321,7 @@ func TestBuffer_DefaultConfig_DropsAtPeak(t *testing.T) {
 		FlushTimeoutMs:        100,
 	}
 	fl := &fakeFlusher{}
-	buf := New(ctx, cfg)
+	buf := New(ctx, cfg, nil, slog.Default())
 	buf.Start(ctx, fl)
 	defer buf.Close(ctx)
 
