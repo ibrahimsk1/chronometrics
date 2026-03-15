@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -30,7 +31,7 @@ func (f *fakeQuerierTimeout) Query(ctx context.Context, params domain.QueryParam
 
 func TestMetrics_Query_Success(t *testing.T) {
 	q := &fakeQuerierOK{}
-	h := New(nil, q, nil, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(nil, q, nil, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
@@ -45,7 +46,7 @@ func TestMetrics_Query_Success(t *testing.T) {
 
 func TestMetrics_Query_Timeout(t *testing.T) {
 	q := &fakeQuerierTimeout{}
-	h := New(nil, q, nil, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(nil, q, nil, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
@@ -60,7 +61,7 @@ func TestMetrics_Query_Timeout(t *testing.T) {
 
 func TestMetrics_Query_MissingEventName(t *testing.T) {
 	q := &fakeQuerierOK{}
-	h := New(nil, q, nil, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(nil, q, nil, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
@@ -75,7 +76,7 @@ func TestMetrics_Query_MissingEventName(t *testing.T) {
 
 func TestMetrics_Query_MissingFromTo(t *testing.T) {
 	q := &fakeQuerierOK{}
-	h := New(nil, q, nil, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(nil, q, nil, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 
@@ -90,7 +91,7 @@ func TestMetrics_Query_MissingFromTo(t *testing.T) {
 
 func TestMetrics_Query_InvalidGroupBy(t *testing.T) {
 	q := &fakeQuerierOK{}
-	h := New(nil, q, nil, ServerConfig{MaxBodyBytes: 1 << 20})
+	h := New(nil, q, nil, ServerConfig{MaxBodyBytes: 1 << 20}, nil, slog.Default(), nil)
 	s := httptest.NewServer(h.Router())
 	defer s.Close()
 

@@ -77,17 +77,29 @@ func (h *Handler) handleBulk(w http.ResponseWriter, r *http.Request) {
 		if err := h.ingester.Ingest(r.Context(), ev); err != nil {
 			resp.Rejected++
 			if domain.IsValidationError(err) {
+				if h.metrics != nil {
+					h.metrics.IngestErrorsTotal.WithLabelValues("validation").Inc()
+				}
 				resp.Errors = append(resp.Errors, BulkItemError{Index: i, Error: err.Error(), Code: "VALIDATION_ERROR"})
 				continue
 			}
 			if errors.Is(err, domain.ErrPublishFailed) {
+				if h.metrics != nil {
+					h.metrics.IngestErrorsTotal.WithLabelValues("publish").Inc()
+				}
 				resp.Errors = append(resp.Errors, BulkItemError{Index: i, Error: "publish failed for item", Code: "PUBLISH_FAILED"})
 				continue
+			}
+			if h.metrics != nil {
+				h.metrics.IngestErrorsTotal.WithLabelValues("internal").Inc()
 			}
 			resp.Errors = append(resp.Errors, BulkItemError{Index: i, Error: "internal error for item", Code: "INTERNAL_ERROR"})
 			continue
 		}
 		resp.Accepted++
+		if h.metrics != nil {
+			h.metrics.EventsIngestedTotal.WithLabelValues("bulk").Inc()
+		}
 	}
 
 	if resp.Accepted == 0 {

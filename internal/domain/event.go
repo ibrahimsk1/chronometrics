@@ -19,6 +19,7 @@ type RawEvent struct {
 	Channel    string                 `json:"channel,omitempty"`
 	CampaignID string                 `json:"campaign_id,omitempty"`
 	Tags       []string               `json:"tags,omitempty"`
+	Priority   *string                `json:"priority,omitempty"`
 	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -33,6 +34,7 @@ type Event struct {
 	Channel     string   `json:"channel"`
 	CampaignID  string   `json:"campaign_id"`
 	Tags        []string `json:"tags"`
+	Priority    *string  `json:"priority"`
 	Metadata    string   `json:"metadata"`
 }
 
@@ -41,29 +43,46 @@ type BulkRequest struct {
 	Events []RawEvent `json:"events"`
 }
 
+var eventRules = []rule{
+	validateEventName,
+}
+
+type rule func(*RawEvent, []error) []error
+
+func validateEventName(e *RawEvent, errs []error) []error {
+	if len(e.EventName) > 100 {
+		errs = append(errs, fmt.Errorf("event_name exceeds 100 chars: %w", ErrEventNameMissing))
+	}
+	return errs
+}
+
 // Validate enforces invariants I1 (required fields) and I2 (timestamp bounds).
 // See system_design §4.3.
 func Validate(e *RawEvent, maxFuture, maxPast time.Duration) error {
 	if e == nil {
-		return &ValidationError{Errors: []string{"raw event is nil"}}
+		return &ValidationError{Errors: []error{ErrRawEventNil}}
 	}
-	var errs []string
+	var errs []error
+
+	for _, rule := range eventRules {
+		errs = rule(e, errs)
+	}
 	if strings.TrimSpace(e.EventName) == "" {
-		errs = append(errs, "event_name is required")
+		errs = append(errs, ErrEventNameMissing)
 	}
 	if strings.TrimSpace(e.UserID) == "" {
-		errs = append(errs, "user_id is required")
+		errs = append(errs, ErrUserIDMissing)
 	}
 	if e.Timestamp <= 0 {
-		errs = append(errs, "timestamp must be positive")
+		errs = append(errs, ErrTimestampNonPositive)
 	} else {
 		tsMs := NormalizeTimestamp(e.Timestamp)
 		now := uint64(time.Now().UnixMilli())
 		if tsMs > now+uint64(maxFuture.Milliseconds()) {
-			errs = append(errs, fmt.Sprintf("timestamp too far in future (max %s)", maxFuture))
+			errs = append(errs, fmt.Errorf("max %s: %w", maxFuture, ErrTimestampTooFuture))
 		}
 		if tsMs < now-uint64(maxPast.Milliseconds()) {
-			errs = append(errs, fmt.Sprintf("timestamp too far in past (max %s)", maxPast))
+			errs = append(errs, fmt.Errorf("max %s: %w", maxPast, ErrTimestampTooPast))
 		}
 	}
 	if len(errs) > 0 {
@@ -86,7 +105,7 @@ func NormalizeTimestamp(ts int64) uint64 {
 // Canonical form: channel + campaignID + sorted(tags) + JSON(metadata).
 // Null byte separators prevent field boundary ambiguity.
 // See system_design §7.4, ADR-0005.
-func ComputePayloadHash(channel, campaignID string, tags []string, metadata string) uint64 {
+func ComputePayloadHash(channel, campaignID string, tags []string, priority, metadata string) uint64 {
 	var b strings.Builder
 	b.WriteString(channel)
 	b.WriteByte(0)
@@ -99,6 +118,8 @@ func ComputePayloadHash(channel, campaignID string, tags []string, metadata stri
 		b.WriteString(tag)
 		b.WriteByte(0)
 	}
+	b.WriteString(priority)
+	b.WriteByte(0)
 	b.WriteString(metadata)
 	return xxhash.Sum64String(b.String())
 }
@@ -118,7 +139,11 @@ func ToEvent(raw *RawEvent) (Event, error) {
 		tags = []string{}
 	}
 	tsMs := NormalizeTimestamp(raw.Timestamp)
-	hash := ComputePayloadHash(raw.Channel, raw.CampaignID, tags, metadataStr)
+	var priorityStr string
+	if raw.Priority != nil {
+		priorityStr = *raw.Priority
+	}
+	hash := ComputePayloadHash(raw.Channel, raw.CampaignID, tags, priorityStr, metadataStr)
 	return Event{
 		EventName:   raw.EventName,
 		UserID:      raw.UserID,
@@ -127,6 +152,7 @@ func ToEvent(raw *RawEvent) (Event, error) {
 		Channel:     raw.Channel,
 		CampaignID:  raw.CampaignID,
 		Tags:        tags,
+		Priority:    raw.Priority,
 		Metadata:    metadataStr,
 	}, nil
 }

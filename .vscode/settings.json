@@ -1,0 +1,9 @@
+{
+  "editor.hover.enabled": true,
+  "editor.hover.delay": 300,
+  "go.useLanguageServer": true,
+  "go.alternateTools": {
+    "gopls": "/Users/ibrahimsik/go/bin/gopls"
+  },
+  "makefile.configureOnOpen": false
+}

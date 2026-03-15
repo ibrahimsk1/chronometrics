@@ -39,16 +39,28 @@ func (h *Handler) handleIngest(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.ingester.Ingest(ctx, &ev); err != nil {
 		if domain.IsValidationError(err) {
+			if h.metrics != nil {
+				h.metrics.IngestErrorsTotal.WithLabelValues("validation").Inc()
+			}
 			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
 		}
 		if errors.Is(err, domain.ErrPublishFailed) {
+			if h.metrics != nil {
+				h.metrics.IngestErrorsTotal.WithLabelValues("publish").Inc()
+			}
 			w.Header().Set("Retry-After", "1")
 			writeError(w, http.StatusServiceUnavailable, "PUBLISH_FAILED", "service overloaded, retry later")
 			return
 		}
+		if h.metrics != nil {
+			h.metrics.IngestErrorsTotal.WithLabelValues("internal").Inc()
+		}
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal error")
 		return
+	}
+	if h.metrics != nil {
+		h.metrics.EventsIngestedTotal.WithLabelValues("single").Inc()
 	}
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }

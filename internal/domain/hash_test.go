@@ -13,8 +13,8 @@ func TestComputePayloadHash_Deterministic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("canonical json err: %v", err)
 	}
-	h1 := ComputePayloadHash("chan", "camp", tags1, string(mb))
-	h2 := ComputePayloadHash("chan", "camp", tags2, string(mb))
+	h1 := ComputePayloadHash("chan", "camp", tags1, string(mb), "")
+	h2 := ComputePayloadHash("chan", "camp", tags2, string(mb), "")
 	if h1 != h2 {
 		t.Fatalf("expected equal hashes, got %d vs %d", h1, h2)
 	}
@@ -31,8 +31,8 @@ func TestComputePayloadHash_MetadataCanonicalization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("canonical json err: %v", err)
 	}
-	h1 := ComputePayloadHash("c", "d", []string{}, string(mb1))
-	h2 := ComputePayloadHash("c", "d", []string{}, string(mb2))
+	h1 := ComputePayloadHash("c", "d", []string{}, string(mb1), "")
+	h2 := ComputePayloadHash("c", "d", []string{}, string(mb2), "")
 	if h1 != h2 {
 		t.Fatalf("expected equal hashes for canonicalized metadata, got %d vs %d", h1, h2)
 	}

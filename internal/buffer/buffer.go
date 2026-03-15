@@ -3,11 +3,13 @@ package buffer
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
 	"eventmetrics/internal/config"
 	"eventmetrics/internal/domain"
+	"eventmetrics/internal/observability"
 )
 
 // Flusher writes a batch of events to persistent storage.
@@ -23,12 +25,14 @@ type Buffer struct {
 	done         chan struct{}
 	wg           sync.WaitGroup
 	flusher      Flusher
-	flushTrigger chan struct{}
+	flushTrigger chan []domain.Event
+	metrics      *observability.Metrics
+	logger       *slog.Logger
 }
 
 // New creates a Buffer with the provided configuration.
 // Call Start to begin background flushing.
-func New(ctx context.Context, cfg config.BufferConfig) *Buffer {
+func New(ctx context.Context, cfg config.BufferConfig, metrics *observability.Metrics, log *slog.Logger) *Buffer {
 	capacity := cfg.Capacity
 	if capacity <= 0 {
 		capacity = 1000
@@ -42,7 +46,9 @@ func New(ctx context.Context, cfg config.BufferConfig) *Buffer {
 		cfg:          cfg,
 		done:         make(chan struct{}),
 		flusher:      nil,
-		flushTrigger: make(chan struct{}, 1),
+		flushTrigger: make(chan []domain.Event, 4),
+		metrics:      metrics,
+		logger:       log.With("component", "buffer"),
 	}
 }
 
@@ -56,28 +62,52 @@ func (b *Buffer) Start(ctx context.Context, fl Flusher) {
 	go b.runFlush(ctx)
 }
 
+func (b *Buffer) dispatch(batch []domain.Event) {
+	if len(batch) == 0 {
+		return
+	}
+	out := make([]domain.Event, len(batch))
+	copy(out, batch)
+	b.flushTrigger <- out
+}
+
 func (b *Buffer) runFlush(ctx context.Context) {
 	defer b.wg.Done()
+	defer close(b.flushTrigger)
+
+	for i := 0; i < 4; i++ {
+		b.wg.Add(1)
+		go b.flushOnce(ctx)
+	}
+
 	interval := b.cfg.FlushIntervalDuration
 	if interval == 0 {
 		interval = time.Duration(b.cfg.FlushInterval) * time.Millisecond
 	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+
+	batch := make([]domain.Event, 0, b.cfg.FlushBatchSize)
+
 	for {
 		select {
+		case e := <-b.ch:
+			batch = append(batch, e)
+			if len(batch) >= b.cfg.FlushBatchSize {
+				b.dispatch(batch)
+				batch = batch[:0]
+			}
 		case <-ticker.C:
-			b.flushOnce(ctx)
-		case <-b.flushTrigger:
-			b.flushOnce(ctx)
+			b.dispatch(batch)
+			batch = batch[:0]
 		case <-b.done:
-			// final drain
+			b.dispatch(batch)
 			for {
 				batch := b.drainBatch()
 				if len(batch) == 0 {
 					return
 				}
-				_ = b.flushWithRetry(ctx, batch)
+				b.dispatch(batch)
 			}
 		}
 	}
@@ -97,14 +127,14 @@ func (b *Buffer) drainBatch() []domain.Event {
 }
 
 func (b *Buffer) flushOnce(ctx context.Context) {
+	defer b.wg.Done()
+
 	if b.flusher == nil {
 		return
 	}
-	batch := b.drainBatch()
-	if len(batch) == 0 {
-		return
+	for batch := range b.flushTrigger {
+		_ = b.flushWithRetry(ctx, batch)
 	}
-	_ = b.flushWithRetry(ctx, batch)
 }
 
 func (b *Buffer) flushWithRetry(parentCtx context.Context, batch []domain.Event) error {
@@ -119,6 +149,10 @@ func (b *Buffer) flushWithRetry(parentCtx context.Context, batch []domain.Event)
 		err := b.flusher.Flush(ctx, batch)
 		cancel()
 		if err == nil {
+			if b.metrics != nil {
+				b.metrics.BufferFlushesTotal.WithLabelValues("success").Inc()
+				b.metrics.BufferDepth.Set(float64(len(b.ch)))
+			}
 			return nil
 		}
 		lastErr = err
@@ -128,6 +162,10 @@ func (b *Buffer) flushWithRetry(parentCtx context.Context, batch []domain.Event)
 			backoff = time.Second
 		}
 	}
+	if b.metrics != nil {
+		b.metrics.BufferFlushesTotal.WithLabelValues("error").Inc()
+	}
+	b.logger.Error("flush failed after retries", "batch_size", len(batch), "error", lastErr)
 	return lastErr
 }
 
@@ -142,11 +180,8 @@ func (b *Buffer) Publish(ctx context.Context, ev domain.Event) error {
 	}
 	select {
 	case b.ch <- ev:
-		if len(b.ch) >= b.cfg.FlushBatchSize {
-			select {
-			case b.flushTrigger <- struct{}{}:
-			default:
-			}
+		if b.metrics != nil {
+			b.metrics.BufferDepth.Set(float64(len(b.ch)))
 		}
 		return nil
 	default:
