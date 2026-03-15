@@ -15,28 +15,29 @@ type QueryParams struct {
 }
 
 var ValidGroupByValues = map[string]bool{
-	"":        true,
-	"channel": true,
-	"hour":    true,
-	"day":     true,
+	"":            true,
+	"channel":     true,
+	"hour":        true,
+	"day":         true,
+	"campaign_id": true,
 }
 
 func ValidateQueryParams(p *QueryParams) error {
-	var errs []string
+	var errs []error
 	if strings.TrimSpace(p.EventName) == "" {
-		errs = append(errs, "event_name is required")
+		errs = append(errs, ErrQueryEventNameMissing)
 	}
 	if p.From == 0 {
-		errs = append(errs, "from is required")
+		errs = append(errs, ErrQueryFromMissing)
 	}
 	if p.To == 0 {
-		errs = append(errs, "to is required")
+		errs = append(errs, ErrQueryToMissing)
 	}
 	if p.From > 0 && p.To > 0 && p.From >= p.To {
-		errs = append(errs, "from must be before to")
+		errs = append(errs, ErrQueryRangeInvalid)
 	}
 	if !ValidGroupByValues[p.GroupBy] {
-		errs = append(errs, fmt.Sprintf("invalid group_by: %q (valid: channel, hour, day)", p.GroupBy))
+		errs = append(errs, fmt.Errorf("%q is not valid (valid: channel, hour, day): %w", p.GroupBy, ErrQueryGroupByInvalid))
 	}
 	if len(errs) > 0 {
 		return &ValidationError{Errors: errs}

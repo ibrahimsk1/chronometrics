@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 )
@@ -31,11 +32,18 @@ var samplePostBulk = `{
   ]
 }`
 
-func TestRawEvent_Unmarshal(t *testing.T) {
+func mustSampleRawEvent(t *testing.T) RawEvent {
+	t.Helper()
+
 	var r RawEvent
 	if err := json.Unmarshal([]byte(samplePostEvent), &r); err != nil {
-		t.Fatalf("unmarshal RawEvent: %v", err)
+		t.Fatalf("unmarshal samplePostEvent: %v", err)
 	}
+	return r
+}
+
+func TestRawEvent_Unmarshal(t *testing.T) {
+	r := mustSampleRawEvent(t)
 
 	if r.EventName == "" {
 		t.Errorf("expected event_name, got empty")
@@ -67,11 +75,61 @@ func TestValidate_MissingFields(t *testing.T) {
 	}
 }
 
+func TestValidateTable_Fields(t *testing.T) {
+	base := mustSampleRawEvent(t)
+	base.Timestamp = time.Now().Unix()
+
+	cases := []struct {
+		name    string
+		mutate  func(*RawEvent)
+		wantErr error
+	}{
+		{
+			name:    "missing event_name",
+			mutate:  func(r *RawEvent) { r.EventName = "" },
+			wantErr: ErrEventNameMissing,
+		},
+		{
+			name:    "missing user_id",
+			mutate:  func(r *RawEvent) { r.UserID = "" },
+			wantErr: ErrUserIDMissing,
+		},
+		{
+			name:    "non-positive timestamp",
+			mutate:  func(r *RawEvent) { r.Timestamp = 0 },
+			wantErr: ErrTimestampNonPositive,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := base
+			tc.mutate(&r)
+			err := Validate(&r, 1*time.Minute, 24*time.Hour)
+			if err == nil {
+				t.Fatal("expected validation error, got nil")
+			}
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("expected %v, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}
+
 func TestNormalizeTimestamp_SecondsToMS(t *testing.T) {
 	secs := int64(1670000000) // seconds
 	ms := NormalizeTimestamp(secs)
 	if ms != 1670000000000 {
 		t.Fatalf("expected 1670000000000, got %d", ms)
+	}
+}
+
+func TestValidate_TimezoneCheck(t *testing.T) {
+	r := mustSampleRawEvent(t)
+
+	r.Timestamp = time.Now().Add(time.Hour * -24).UnixMilli()
+	if err := Validate(&r, time.Duration(time.Hour*1), time.Duration(time.Hour*10)); err == nil {
+		t.Fatalf("Time validation error is expected")
 	}
 }
 

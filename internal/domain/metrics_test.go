@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -104,7 +105,7 @@ func TestMetricResult_JSONSerialization(t *testing.T) {
 }
 
 func TestValidationError_ErrorFormatting(t *testing.T) {
-	ve := &ValidationError{Errors: []string{"a", "b"}}
+	ve := &ValidationError{Errors: []error{errors.New("a"), errors.New("b")}}
 	if ve.Error() != "validation failed: a; b" {
 		t.Fatalf("unexpected ValidationError.Error(): %s", ve.Error())
 	}
